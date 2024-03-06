@@ -47,7 +47,11 @@ class App:
         if button == self.button1:
             try:
                 self.label2.config(text="RVTools Analysis Started\n \nPlease Wait...")
-                RVToolsAnalysis.main(self.label2)  # Pass label2 as an argument
+                #self.label2.update_idletasks()  # Force the label update
+                #RVToolsAnalysis.main(self.label2)  # Pass label2 as an argument
+                def start_rvtoolsanalysis():
+                    RVToolsAnalysis.main(self.label2) 
+                self.root.after(10, start_rvtoolsanalysis)  # Adjust the '10' for delay as needed
             except Exception as e:
                 self.label2.config(text=f"Error: {str(e)}")
         elif button == self.button2:
