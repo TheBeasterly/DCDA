@@ -1,3 +1,0 @@
-([('OPPCAnalyzer',
-   '/Users/Ryan.Easterly/Desktop/Git/OPPCAnalyzer/OPPCAnalyzer-STABLETEST/Install-MacOS/AppInstall/dist/OPPCAnalyzer',
-   'EXECUTABLE')],)
