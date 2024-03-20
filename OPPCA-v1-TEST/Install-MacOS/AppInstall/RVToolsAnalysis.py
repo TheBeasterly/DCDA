@@ -330,6 +330,87 @@ def main(label2):
 
         vinfo_ws.cell(row=i, column=new_column_index).value = inuse_gb_value
 
+    # Find "Capacity MiB" on vDisk Sheet
+    def vdisk_findcapacitymib(vdisk_ws):
+      """Finds the cell in row A of the "vDisk" worksheet that contains the string "Capacity MiB".
+
+      Args:
+        vdisk_ws: An xl worksheet object.
+
+      Returns:
+        The cell object in row A that contains the string "Capacity MiB", or None if the string is not found.
+      """
+
+      for row in vdisk_ws.iter_cols(min_row=1, max_row=1):
+        for cell in row:
+          if cell.value == "Capacity MiB":
+            return cell
+
+      return None
+
+    # Insert Column after "Capacity MiB" on vDisk Sheet
+    def vdisk_capacitymib_inscol(vdisk_ws, vdiskcapmib_cell):
+      """Inserts a new column to the right of the specified cell in the "vDisk" worksheet.
+
+      Args:
+        vdisk_ws: An xl worksheet object.
+        vdiskcapmib_cell: The cell to insert the new column to the right of.
+      """
+
+      column_index = vdiskcapmib_cell.column
+      vdisk_ws.insert_cols(column_index + 1)
+      new_column_index = vdiskcapmib_cell.column + 1
+
+      # Set the header of the newly added column
+      vdisk_ws.cell(row=1, column=new_column_index).value = "Capacity GB"
+
+      # Calculate and insert "Capacity GB" values
+      for i in range(2, vdisk_ws.max_row + 1):
+        cap_mib_value = vdisk_ws.cell(row=i, column=column_index).value
+
+        # Handle cases where the 'Capacity MiB' cell is empty or not numeric
+        if cap_mib_value is None or not isinstance(cap_mib_value, (int, float)):
+            cap_gb_value = None  # Set to None or a default value
+        else:
+            cap_gb_value = round(cap_mib_value / 953.7, 2)
+
+        vdisk_ws.cell(row=i, column=new_column_index).value = cap_gb_value
+
+    # Find "DiskCount" on vDisk Sheet
+    def vdisk_finddiskcount(vdisk_ws):
+      """Finds the cell in row 1 of the "vDisk" worksheet that contains the string "DiskCount".
+
+      Args:
+        vdisk_ws: An xl worksheet object.
+
+      Returns:
+        The cell object in row A that contains the string "DiskCount", or None if the string is not found.
+      """
+
+      for row in vdisk_ws.iter_cols(min_row=1, max_row=1):
+        for cell in row:
+          if cell.value == "DiskCount":
+            return cell
+
+      return None
+
+    # Insert Value of "1" in "DiskCount" Column on vDisk Sheet
+    def vdisk_diskcount_val(vdisk_ws, vdiskdiskcount_cell):
+      """Inserts a value of "1" in the "DiskCount" Column on the "vDisk" worksheet.
+
+      Args:
+        vdisk_ws: An xl worksheet object.
+        vdiskdiskcount_cell: The cell to insert the new column to the right of.
+      """
+
+      column_index = vdiskdiskcount_cell.column
+
+      # Set the value of the cell in row 1 of the column to "DiskCount".
+      vdisk_ws.cell(row=1, column=column_index).value = "DiskCount"
+
+      for i in range(2, vdisk_ws.max_row + 1):
+        vdisk_ws.cell(row=i, column=column_index).value = 1
+
     # Find "Capacity MiB" on vPartition Sheet
     def vpart_findcapacitymib(vpart_ws):
       """Finds the cell in row A of the "vPartition" worksheet that contains the string "Capacity MiB".
@@ -366,15 +447,15 @@ def main(label2):
 
       # Calculate and insert "Capacity GB" values
       for i in range(2, vpart_ws.max_row + 1):
-        cap_mib_value = vpart_ws.cell(row=i, column=column_index).value
+        vpartcap_mib_value = vpart_ws.cell(row=i, column=column_index).value
 
         # Handle cases where the 'Capacity MiB' cell is empty or not numeric
-        if cap_mib_value is None or not isinstance(cap_mib_value, (int, float)):
-            cap_gb_value = None  # Set to None or a default value
+        if vpartcap_mib_value is None or not isinstance(vpartcap_mib_value, (int, float)):
+            vpartcap_gb_value = None  # Set to None or a default value
         else:
-            cap_gb_value = round(cap_mib_value / 953.7, 2)
+            vpartcap_gb_value = round(vpartcap_mib_value / 953.7, 2)
 
-        vpart_ws.cell(row=i, column=new_column_index).value = cap_gb_value
+        vpart_ws.cell(row=i, column=new_column_index).value = vpartcap_gb_value
 
     # Find "Consumed MiB" on vPartition Sheet
     def vpart_findconsumedmib(vpart_ws):
@@ -516,25 +597,31 @@ def main(label2):
     def del_cols_vInfo(destfile_name):
       # Load the Excel file into a Pandas DataFrame
       df1 = pd.read_excel(destfile_name, sheet_name='vInfo')
-      df2 = pd.read_excel(destfile_name, sheet_name='vPartition')
+      df2 = pd.read_excel(destfile_name, sheet_name='vDisk')
+      df3 = pd.read_excel(destfile_name, sheet_name='vPartition')
 
       # Get a list of all valid column indices
       valid_column_indices1 = list(df1.columns)
       valid_column_indices2 = list(df2.columns)
+      valid_column_indices3 = list(df3.columns)
 
       # Get the column indices to keep
       keep_cols_vInfo = [col_idx for col_idx in valid_column_indices1 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'HasTools', 'Disks', 'Total disk capacity', 'Provisioned MiB', 'Provisioned GB', 'In Use MiB', 'In Use GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
-      keep_cols_vPart = [col_idx for col_idx in valid_column_indices2 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'Disk', 'Capacity MiB', 'Capacity GB', 'Consumed MiB', 'Consumed GB', 'Free MiB', 'Free GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
+      keep_cols_vDisk = [col_idx for col_idx in valid_column_indices2 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'DiskCount', 'Disk', 'Capacity MiB', 'Capacity GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
+      keep_cols_vPart = [col_idx for col_idx in valid_column_indices3 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'Disk', 'Capacity MiB', 'Capacity GB', 'Consumed MiB', 'Consumed GB', 'Free MiB', 'Free GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
 
       # Create a new DataFrame with only the columns that you want to keep
       new_df1 = df1.loc[:, keep_cols_vInfo]
-      new_df2 = df2.loc[:, keep_cols_vPart]
+      new_df2 = df2.loc[:, keep_cols_vDisk]
+      new_df3 = df3.loc[:, keep_cols_vPart]
 
       # Save the adjusted worksheets to the same workbook
       writer = pd.ExcelWriter(destfile_name, mode='w')
       new_df1.to_excel(writer, sheet_name='vInfo', index=False)
-      new_df2.to_excel(writer, sheet_name='vPartition', index=False)
+      new_df2.to_excel(writer, sheet_name='vDisk', index=False)
+      new_df3.to_excel(writer, sheet_name='vPartition', index=False)
       writer.close()
+
 
 
     ## Filter First Row
@@ -605,6 +692,10 @@ def main(label2):
         destfile["vInfo"].insert_cols(8, 1)
         destfile["vInfo"]['H1'] = 'HasTools'
 
+        # Insert "DiskCount" Column in vDisk Sheet
+        destfile["vDisk"].insert_cols(8, 1)
+        destfile["vDisk"]['H1'] = 'DiskCount'
+
         destfile.save(destfile_name)
 
         ## Match Workload Types
@@ -628,6 +719,7 @@ def main(label2):
         ## Insert Columns for MiB to GB math
         destfile = xl.load_workbook(destfile_name)
         vinfo_ws = destfile["vInfo"]
+        vdisk_ws = destfile["vDisk"]
         vpart_ws = destfile["vPartition"]
         for sheet in destfile:
             destfile[sheet.title].views.sheetView[0].tabSelected = False
@@ -641,6 +733,15 @@ def main(label2):
         vinfoinusemib_cell = vinfo_findinusemib(vinfo_ws)
         if vinfoinusemib_cell is not None:
           vinfo_inusemib_inscol(vinfo_ws, vinfoinusemib_cell)
+        
+        # Insert Columns in vDisk Sheet
+        destfile.active = vdisk_ws
+        vdiskcapmib_cell = vdisk_findcapacitymib(vdisk_ws)
+        if vdiskcapmib_cell is not None:
+          vdisk_capacitymib_inscol(vdisk_ws, vdiskcapmib_cell)
+        vdiskdiskcount_cell = vdisk_finddiskcount(vdisk_ws)
+        if vdiskdiskcount_cell is not None:
+          vdisk_diskcount_val(vdisk_ws, vdiskdiskcount_cell)
 
         # Insert Columns in vPartition Sheet
         destfile.active = vpart_ws
