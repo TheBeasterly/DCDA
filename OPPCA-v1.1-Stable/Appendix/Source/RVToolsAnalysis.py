@@ -269,11 +269,20 @@ def main(label2):
       vinfo_ws.insert_cols(column_index + 1)
       new_column_index = vinfoprovmib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "Provisioned GB".
+      # Set the header of the newly added column
       vinfo_ws.cell(row=1, column=new_column_index).value = "Provisioned GB"
 
+      # Calculate and insert "Provisioned GB" values
       for i in range(2, vinfo_ws.max_row + 1):
-        vinfo_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        prov_mib_value = vinfo_ws.cell(row=i, column=column_index).value
+
+         # Handle cases where the 'Provisioned MiB' cell is empty or not numeric
+        if prov_mib_value is None or not isinstance(prov_mib_value, (int, float)):
+            prov_gb_value = None  # Set to None or a default value
+        else:
+            prov_gb_value = round(prov_mib_value / 953.7, 2)
+
+        vinfo_ws.cell(row=i, column=new_column_index).value = prov_gb_value
 
     # Find "In Use MiB" on vInfo Sheet
     def vinfo_findinusemib(vinfo_ws):
@@ -306,11 +315,20 @@ def main(label2):
       vinfo_ws.insert_cols(column_index + 1)
       new_column_index = vinfoinusemib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "In Use GB".
+      # Set the header of the newly added column
       vinfo_ws.cell(row=1, column=new_column_index).value = "In Use GB"
 
+      # Calculate and insert "In Use GB" values
       for i in range(2, vinfo_ws.max_row + 1):
-        vinfo_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        inuse_mib_value = vinfo_ws.cell(row=i, column=column_index).value
+
+         # Handle cases where the 'In Use MiB' cell is empty or not numeric
+        if inuse_mib_value is None or not isinstance(inuse_mib_value, (int, float)):
+            inuse_gb_value = None  # Set to None or a default value
+        else:
+            inuse_gb_value = round(inuse_mib_value / 953.7, 2)
+
+        vinfo_ws.cell(row=i, column=new_column_index).value = inuse_gb_value
 
     # Find "Capacity MiB" on vDisk Sheet
     def vdisk_findcapacitymib(vdisk_ws):
@@ -343,11 +361,20 @@ def main(label2):
       vdisk_ws.insert_cols(column_index + 1)
       new_column_index = vdiskcapmib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "Capacity GB".
+      # Set the header of the newly added column
       vdisk_ws.cell(row=1, column=new_column_index).value = "Capacity GB"
 
+      # Calculate and insert "Capacity GB" values
       for i in range(2, vdisk_ws.max_row + 1):
-        vdisk_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        cap_mib_value = vdisk_ws.cell(row=i, column=column_index).value
+
+        # Handle cases where the 'Capacity MiB' cell is empty or not numeric
+        if cap_mib_value is None or not isinstance(cap_mib_value, (int, float)):
+            cap_gb_value = None  # Set to None or a default value
+        else:
+            cap_gb_value = round(cap_mib_value / 953.7, 2)
+
+        vdisk_ws.cell(row=i, column=new_column_index).value = cap_gb_value
 
     # Find "DiskCount" on vDisk Sheet
     def vdisk_finddiskcount(vdisk_ws):
@@ -415,11 +442,20 @@ def main(label2):
       vpart_ws.insert_cols(column_index + 1)
       new_column_index = vpartcapmib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "Capacity GB".
+      # Set the header of the newly added column
       vpart_ws.cell(row=1, column=new_column_index).value = "Capacity GB"
 
+      # Calculate and insert "Capacity GB" values
       for i in range(2, vpart_ws.max_row + 1):
-        vpart_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        vpartcap_mib_value = vpart_ws.cell(row=i, column=column_index).value
+
+        # Handle cases where the 'Capacity MiB' cell is empty or not numeric
+        if vpartcap_mib_value is None or not isinstance(vpartcap_mib_value, (int, float)):
+            vpartcap_gb_value = None  # Set to None or a default value
+        else:
+            vpartcap_gb_value = round(vpartcap_mib_value / 953.7, 2)
+
+        vpart_ws.cell(row=i, column=new_column_index).value = vpartcap_gb_value
 
     # Find "Consumed MiB" on vPartition Sheet
     def vpart_findconsumedmib(vpart_ws):
@@ -452,11 +488,20 @@ def main(label2):
       vpart_ws.insert_cols(column_index + 1)
       new_column_index = vpartconsmib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "Consumed GB".
+      # Set the header of the newly added column
       vpart_ws.cell(row=1, column=new_column_index).value = "Consumed GB"
 
+      # Calculate and insert "Consumed GB" values
       for i in range(2, vpart_ws.max_row + 1):
-        vpart_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        cons_mib_value = vpart_ws.cell(row=i, column=column_index).value
+
+        # Handle cases where the 'Consumed MiB' cell is empty or not numeric
+        if cons_mib_value is None or not isinstance(cons_mib_value, (int, float)):
+            cons_gb_value = None  # Set to None or a default value
+        else:
+            cons_gb_value = round(cons_mib_value / 953.7, 2)
+
+        vpart_ws.cell(row=i, column=new_column_index).value = cons_gb_value
 
     # Find "Free MiB" on vPartition Sheet
     def vpart_findfreemib(vpart_ws):
@@ -489,11 +534,20 @@ def main(label2):
       vpart_ws.insert_cols(column_index + 1)
       new_column_index = vpartfreemib_cell.column + 1
 
-      # Set the value of the cell in row 1 of the newly added column to "Free GB".
+      # Set the header of the newly added column
       vpart_ws.cell(row=1, column=new_column_index).value = "Free GB"
 
+      # Calculate and insert "Free GB" values
       for i in range(2, vpart_ws.max_row + 1):
-        vpart_ws.cell(row=i, column=new_column_index).value = "=ROUND(INDIRECT(ADDRESS(ROW(), COLUMN() - 1)) / 953.7, 2)"
+        free_mib_value = vpart_ws.cell(row=i, column=column_index).value
+
+        # Handle cases where the 'Free MiB' cell is empty or not numeric
+        if free_mib_value is None or not isinstance(free_mib_value, (int, float)):
+            free_gb_value = None  # Set to None or a default value
+        else:
+            free_gb_value = round(free_mib_value / 953.7, 2)
+
+        vpart_ws.cell(row=i, column=new_column_index).value = free_gb_value
 
 
     ## Compare VMs on vInfo Sheet to vPart Sheet
@@ -567,6 +621,7 @@ def main(label2):
       new_df2.to_excel(writer, sheet_name='vDisk', index=False)
       new_df3.to_excel(writer, sheet_name='vPartition', index=False)
       writer.close()
+
 
 
     ## Filter First Row
@@ -678,7 +733,7 @@ def main(label2):
         vinfoinusemib_cell = vinfo_findinusemib(vinfo_ws)
         if vinfoinusemib_cell is not None:
           vinfo_inusemib_inscol(vinfo_ws, vinfoinusemib_cell)
-
+        
         # Insert Columns in vDisk Sheet
         destfile.active = vdisk_ws
         vdiskcapmib_cell = vdisk_findcapacitymib(vdisk_ws)
