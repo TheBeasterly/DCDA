@@ -623,7 +623,6 @@ def main(label2):
       writer.close()
 
 
-
     ## Filter First Row
     def filter_rows(destfile):
       """Filters the first row on all sheets.
