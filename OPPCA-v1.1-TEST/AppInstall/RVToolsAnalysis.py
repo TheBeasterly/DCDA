@@ -649,10 +649,12 @@ def main(label2):
       try:
         ## Open the Excel file
         srcfile = xl.load_workbook(srcfile_name)
+        #label2.config(text=f"Working... 5% Completed...")
 
         ## Create a new Excel file
         destfile_name = srcfile_name[:-5] + "-EDITED.xlsx"
         srcfile.save(destfile_name)
+        #label2.config(text=f"Working... 12% Completed...")
 
         ## Open new Excel file and remove extra sheets
         destfile = xl.load_workbook(destfile_name)
@@ -662,23 +664,23 @@ def main(label2):
             if sheetName not in keep_sheets:
                 del destfile[sheetName]
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 18% Completed...")
 
         ## Remove Formatting
         destfile = xl.load_workbook(destfile_name)
         removeFormatting(destfile)
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 25% Completed...")
 
         ## Add Columns
         destfile = xl.load_workbook(destfile_name)
-
         for worksheet in destfile.worksheets:
           worksheet.insert_cols(2, 6)
-
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 35% Completed...")
 
         ## Rename columns B:G in all sheets to "IsFile", "IsSQL", "IsOrcl", "IsPGres", "IsExch", and "IsTestDev" 
         destfile = xl.load_workbook(destfile_name)
-
         for worksheet in destfile.worksheets:
           worksheet['B1'] = 'IsFile'
           worksheet['C1'] = 'IsSQL'
@@ -686,16 +688,18 @@ def main(label2):
           worksheet['E1'] = 'IsPGres'
           worksheet['F1'] = 'IsExch'
           worksheet['G1'] = 'IsTestDev'
+        #label2.config(text=f"Working... 50% Completed...")
 
         # Insert "HasTools" Column in vInfo Sheet
         destfile["vInfo"].insert_cols(8, 1)
         destfile["vInfo"]['H1'] = 'HasTools'
+        #label2.config(text=f"Working... 57% Completed...")
 
         # Insert "DiskCount" Column in vDisk Sheet
         destfile["vDisk"].insert_cols(8, 1)
         destfile["vDisk"]['H1'] = 'DiskCount'
-
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 63% Completed...")
 
         ## Match Workload Types
         destfile = xl.load_workbook(destfile_name)
@@ -711,9 +715,11 @@ def main(label2):
           used_range_a = get_used_range(destfile.active)
           set_no_values(destfile, used_range_a)
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 75% Completed...")
 
         ## Del Cols
         del_cols_vInfo(destfile_name)
+        #label2.config(text=f"Working... 80% Completed...")
 
         ## Insert Columns for MiB to GB math
         destfile = xl.load_workbook(destfile_name)
@@ -723,6 +729,7 @@ def main(label2):
         for sheet in destfile:
             destfile[sheet.title].views.sheetView[0].tabSelected = False
         removeFormatting(destfile)
+        #label2.config(text=f"Working... 83% Completed...")
 
         # Insert Columns in vInfo Sheet
         destfile.active = vinfo_ws
@@ -732,6 +739,7 @@ def main(label2):
         vinfoinusemib_cell = vinfo_findinusemib(vinfo_ws)
         if vinfoinusemib_cell is not None:
           vinfo_inusemib_inscol(vinfo_ws, vinfoinusemib_cell)
+        #label2.config(text=f"Working... 86% Completed...")
         
         # Insert Columns in vDisk Sheet
         destfile.active = vdisk_ws
@@ -741,6 +749,7 @@ def main(label2):
         vdiskdiskcount_cell = vdisk_finddiskcount(vdisk_ws)
         if vdiskdiskcount_cell is not None:
           vdisk_diskcount_val(vdisk_ws, vdiskdiskcount_cell)
+        #label2.config(text=f"Working... 89% Completed...")
 
         # Insert Columns in vPartition Sheet
         destfile.active = vpart_ws
@@ -755,6 +764,7 @@ def main(label2):
           vpart_freemib_inscol(vpart_ws, vpartfreemib_cell)
 
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 92% Completed...")
 
         ## Compare VMs
         destfile = xl.load_workbook(destfile_name)
@@ -762,11 +772,13 @@ def main(label2):
         vpart_ws = destfile["vPartition"]
         compare_vms(vinfo_ws, vpart_ws)
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 99% Completed...")
 
         ## Filter First Row
         destfile = xl.load_workbook(destfile_name)
         filter_rows(destfile)
         destfile.save(destfile_name)
+        #label2.config(text=f"Working... 100% Completed...")
       except Exception as e:
         label2.config(text=f"Source File import aborted. Analysis canceled.")
       else:
