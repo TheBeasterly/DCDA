@@ -41,7 +41,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 1).value = "Yes"
+            cell.offset(0, 2).value = "Yes"
 
     ## Match SQL DBs
     def match_sql(destfile):
@@ -62,7 +62,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 2).value = "Yes"
+            cell.offset(0, 3).value = "Yes"
 
     ## Match Oracle DBs
     def match_orcl(destfile):
@@ -83,7 +83,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 3).value = "Yes"
+            cell.offset(0, 4).value = "Yes"
 
     ## Match PostGres DBs
     def match_pgres(destfile):
@@ -104,7 +104,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 4).value = "Yes"
+            cell.offset(0, 5).value = "Yes"
 
     ## Match Possible DBs
     def match_gendb(destfile):
@@ -125,9 +125,9 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 2).value = "Check"
             cell.offset(0, 3).value = "Check"
             cell.offset(0, 4).value = "Check"
+            cell.offset(0, 5).value = "Check"
 
     ## Match Exchange Servers
     def match_exch(destfile):
@@ -148,7 +148,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 5).value = "Yes"
+            cell.offset(0, 6).value = "Yes"
 
     ## Match TestDev
     def match_tstdev(destfile):
@@ -169,7 +169,7 @@ def main(label2):
               break
 
           if match_found:
-            cell.offset(0, 6).value = "Yes"
+            cell.offset(0, 7).value = "Yes"
 
     ## Set No Values
     # Set Used Range of Column A
@@ -210,9 +210,9 @@ def main(label2):
       # Return the start and end cells of the used range of the worksheet.
       return start_cell, end_cell
 
-    #Set No Values in columns B through G
+    #Set No Values in columns C through H
     def set_no_values(destfile, used_range_a):
-      """Sets the value of all empty cells in columns B to G to "No", based on the used range of column A.
+      """Sets the value of all empty cells in columns C to H to "No", based on the used range of column A.
 
       Args:
         destfile: An xl workbook object.
@@ -226,8 +226,8 @@ def main(label2):
       # Iterate over the rows in the used range of column A.
       for row_index in range(start_row_number, end_row_number + 1):
 
-        # Iterate over the cells in columns B to G.
-        for column_index in range(2, 8):
+        # Iterate over the cells in columns C to H.
+        for column_index in range(3, 9):
 
           # Get the cell object.
           cell = destfile.active.cell(row=row_index, column=column_index)
@@ -582,15 +582,15 @@ def main(label2):
 
             # If a matching cell is found, then set the "HasTools" column in the vInfo worksheet to "Yes".
             if vpart_cell_value == vinfo_cell_value:
-              vinfo_cell.offset(0, 7).value = "Yes"
+              vinfo_cell.offset(0, 8).value = "Yes"
               break
 
           # If no matching cell is found, then set the "HasTools" column in the vInfo worksheet to "No".
           else:
-            vinfo_cell.offset(0, 7).value = "No"
+            vinfo_cell.offset(0, 8).value = "No"
 
       # Set the header for the "HasTools" column.
-      vinfo_ws["H1"].value = "HasTools"
+      vinfo_ws["I1"].value = "HasTools"
 
 
     ## Delete Unnecessary Columns
@@ -606,9 +606,9 @@ def main(label2):
       valid_column_indices3 = list(df3.columns)
 
       # Get the column indices to keep
-      keep_cols_vInfo = [col_idx for col_idx in valid_column_indices1 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'HasTools', 'Disks', 'Total disk capacity', 'Provisioned MiB', 'Provisioned GB', 'In Use MiB', 'In Use GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
-      keep_cols_vDisk = [col_idx for col_idx in valid_column_indices2 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'DiskCount', 'Disk', 'Capacity MiB', 'Capacity GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
-      keep_cols_vPart = [col_idx for col_idx in valid_column_indices3 if col_idx in ['VM', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'Disk', 'Capacity MiB', 'Capacity GB', 'Consumed MiB', 'Consumed GB', 'Free MiB', 'Free GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
+      keep_cols_vInfo = [col_idx for col_idx in valid_column_indices1 if col_idx in ['VM', 'Powerstate', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'HasTools', 'Disks', 'Total disk capacity', 'Provisioned MiB', 'Provisioned GB', 'In Use MiB', 'In Use GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
+      keep_cols_vDisk = [col_idx for col_idx in valid_column_indices2 if col_idx in ['VM', 'Powerstate', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'DiskCount', 'Disk', 'Capacity MiB', 'Capacity GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
+      keep_cols_vPart = [col_idx for col_idx in valid_column_indices3 if col_idx in ['VM', 'Powerstate', 'IsFile', 'IsSQL', 'IsOrcl', 'IsPGres', 'IsExch', 'IsTestDev', 'Disk', 'Capacity MiB', 'Capacity GB', 'Consumed MiB', 'Consumed GB', 'Free MiB', 'Free GB', 'Datacenter', 'Cluster', 'OS according to the configuration file', 'OS according to the VMware Tools']]
 
       # Create a new DataFrame with only the columns that you want to keep
       new_df1 = df1.loc[:, keep_cols_vInfo]
@@ -621,6 +621,85 @@ def main(label2):
       new_df2.to_excel(writer, sheet_name='vDisk', index=False)
       new_df3.to_excel(writer, sheet_name='vPartition', index=False)
       writer.close()
+
+
+    ## Truncate vPartition Storage Capacity Cols into vInfo
+    def trunc_cols_vPart(destfile_name):
+      # Load the Excel file into a Pandas DataFrame
+      tcdf1 = pd.read_excel(destfile_name, sheet_name='vInfo')
+      tcdf2 = pd.read_excel(destfile_name, sheet_name='vDisk')
+      tcdf3 = pd.read_excel(destfile_name, sheet_name='vPartition')
+
+      # Identify storage-related columns
+      storage_columns = [col_idx for col_idx in tcdf3.columns if col_idx in ['Capacity GB', 'Consumed GB', 'Free GB']]
+      
+      # Aggregate storage data from vPartition
+      aggregated_df = (
+          tcdf3.groupby('VM')
+          .agg({col: 'sum' for col in storage_columns})
+          .reset_index()
+          .fillna("0")  # Fill missing values with 0
+      )
+
+      # Merge aggregated data into vInfo
+      vSummary_df = pd.merge(tcdf1, aggregated_df, on='VM', how='left')
+
+      # Reorder columns to place aggregated columns after "In Use GB"
+      in_use_gb_index = vSummary_df.columns.get_loc('In Use GB')
+      new_column_order = (
+          vSummary_df.columns[:in_use_gb_index + 1].tolist() + 
+          aggregated_df.columns[1:].tolist() +  # Exclude 'VM' which is already in tcdf1
+          vSummary_df.columns[in_use_gb_index + 1:].tolist()
+      )
+      vSummary_df = vSummary_df[new_column_order]
+
+      # Save the merged DataFrame to a new sheet 'vSummary'
+      with pd.ExcelWriter(destfile_name, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+          vSummary_df.to_excel(writer, sheet_name='vSummary', index=False)
+
+      # Save or use the merged DataFrame
+      writer = pd.ExcelWriter(destfile_name, mode='w')
+      vSummary_df.to_excel(writer, sheet_name='vSummary', index=False)
+      tcdf1.to_excel(writer, sheet_name='vInfo', index=False)
+      tcdf2.to_excel(writer, sheet_name='vDisk', index=False)
+      tcdf3.to_excel(writer, sheet_name='vPartition', index=False)
+      writer.close()
+
+
+    ## Remove Excess vSummary Cols
+    def trimvSum1(destfile):
+      vSum_ws = destfile['vSummary']
+      vSum_ws.delete_cols(22, 3)
+      vSum_ws.delete_cols(13, 1)
+      vSum_ws.delete_cols(11, 1)
+
+
+    ## Consolidate Consumed GB Column
+    def consol_vSum(destfile):
+
+      # Get the 'vSummary' worksheet
+      vSum_ws = destfile['vSummary']
+
+      # Find the column indices for 'Consumed GB' and 'In Use GB'
+      consumed_gb_col_idx = None
+      in_use_gb_col_idx = None
+      for col_idx, col in enumerate(vSum_ws.iter_cols(1, vSum_ws.max_column), 1):  # 1-based indexing
+          if col[0].value == 'Consumed GB':
+              consumed_gb_col_idx = col_idx
+          elif col[0].value == 'In Use GB':
+              in_use_gb_col_idx = col_idx
+
+      if consumed_gb_col_idx is None or in_use_gb_col_idx is None:
+          print("Error: 'Consumed GB' or 'In Use GB' column not found.")
+      else:
+          # Iterate over rows, starting from the second row (assuming the first row is headers)
+          for row_idx in range(2, vSum_ws.max_row + 1):
+              consumed_gb_cell = vSum_ws.cell(row=row_idx, column=consumed_gb_col_idx)
+              in_use_gb_cell = vSum_ws.cell(row=row_idx, column=in_use_gb_col_idx)
+
+              # Check if 'Consumed GB' is empty or blank
+              if consumed_gb_cell.value is None or consumed_gb_cell.value == "":
+                  consumed_gb_cell.value = in_use_gb_cell.value
 
 
     ## Filter First Row
@@ -675,29 +754,29 @@ def main(label2):
         ## Add Columns
         destfile = xl.load_workbook(destfile_name)
         for worksheet in destfile.worksheets:
-          worksheet.insert_cols(2, 6)
+          worksheet.insert_cols(3, 6)
         destfile.save(destfile_name)
         #label2.config(text=f"Working... 35% Completed...")
 
-        ## Rename columns B:G in all sheets to "IsFile", "IsSQL", "IsOrcl", "IsPGres", "IsExch", and "IsTestDev" 
+        ## Rename columns C:H in all sheets to "IsFile", "IsSQL", "IsOrcl", "IsPGres", "IsExch", and "IsTestDev" 
         destfile = xl.load_workbook(destfile_name)
         for worksheet in destfile.worksheets:
-          worksheet['B1'] = 'IsFile'
-          worksheet['C1'] = 'IsSQL'
-          worksheet['D1'] = 'IsOrcl'
-          worksheet['E1'] = 'IsPGres'
-          worksheet['F1'] = 'IsExch'
-          worksheet['G1'] = 'IsTestDev'
+          worksheet['C1'] = 'IsFile'
+          worksheet['D1'] = 'IsSQL'
+          worksheet['E1'] = 'IsOrcl'
+          worksheet['F1'] = 'IsPGres'
+          worksheet['G1'] = 'IsExch'
+          worksheet['H1'] = 'IsTestDev'
         #label2.config(text=f"Working... 50% Completed...")
 
         # Insert "HasTools" Column in vInfo Sheet
-        destfile["vInfo"].insert_cols(8, 1)
-        destfile["vInfo"]['H1'] = 'HasTools'
+        destfile["vInfo"].insert_cols(9, 1)
+        destfile["vInfo"]['I1'] = 'HasTools'
         #label2.config(text=f"Working... 57% Completed...")
 
         # Insert "DiskCount" Column in vDisk Sheet
-        destfile["vDisk"].insert_cols(8, 1)
-        destfile["vDisk"]['H1'] = 'DiskCount'
+        destfile["vDisk"].insert_cols(9, 1)
+        destfile["vDisk"]['I1'] = 'DiskCount'
         destfile.save(destfile_name)
         #label2.config(text=f"Working... 63% Completed...")
 
@@ -772,15 +851,27 @@ def main(label2):
         vpart_ws = destfile["vPartition"]
         compare_vms(vinfo_ws, vpart_ws)
         destfile.save(destfile_name)
-        #label2.config(text=f"Working... 99% Completed...")
+        #label2.config(text=f"Working... 95% Completed...")
 
+        ## Truncate vPartition Storage Capacity Cols into vInfo
+        trunc_cols_vPart(destfile_name)
+        #label2.config(text=f"Working... 98% Completed...")
+
+        ## Remove Formatting and Excess Columns on vSummary sheet
+        destfile = xl.load_workbook(destfile_name)
+        removeFormatting(destfile)
+        trimvSum1(destfile)
+        consol_vSum(destfile)
+        destfile.save(destfile_name)
+        #label2.config(text=f"Working... 99% Completed...")
+        
         ## Filter First Row
         destfile = xl.load_workbook(destfile_name)
         filter_rows(destfile)
         destfile.save(destfile_name)
         #label2.config(text=f"Working... 100% Completed...")
       except Exception as e:
-        label2.config(text=f"Source File import aborted. Analysis canceled.")
+        label2.config(text=f"Source File import aborted. Analysis canceled.\n \nError: {e}")
       else:
         label2.config(text=f"Success!\n \nRVTools Analysis Completed\n \nAnalyzed file will be new file appended with -EDITED and saved in same directory as Source File\n \nYou may now click the Exit Button to close this Program, or choose another file to analyze")
     except Exception as e:
