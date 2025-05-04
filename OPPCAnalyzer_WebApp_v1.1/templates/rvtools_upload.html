@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RVTools Analysis</title>
+    <title>RVTools Analysis Upload</title>
     <style>
+        /* --- Complete CSS Rules --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             line-height: 1.6; margin: 20px; background-color: #f4f4f4;
@@ -31,7 +32,22 @@
         .flash-message { padding: 12px; margin-bottom: 20px; border-radius: 4px; border: 1px solid transparent; font-size: 0.95rem; }
         .flash-message.error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
         .flash-message.info { background-color: #e2e3e5; border-color: #d6d8db; color: #383d41; }
-        #new_client_group, #new_project_group { display: none; margin-top: 10px; padding-left: 15px; border-left: 3px solid #007bff; }
+        #new_client_group, #new_project_group {
+             display: none; /* Hidden by default */
+             margin-top: 10px; /* Add some space when shown */
+             padding-left: 15px; /* Indent slightly */
+             border-left: 3px solid #007bff; /* Indicate it's related */
+        }
+         /* Styles for file check status message */
+        #file_check_status {
+            font-size: 0.9em;
+            margin-top: 5px;
+            min-height: 1.2em; /* Reserve space */
+        }
+        .status-checking { color: #ffc107; /* Amber */ }
+        .status-collision { color: #dc3545; /* Red */ font-weight: bold; }
+        .status-ok { color: #28a745; /* Green */ }
+         /* --- End of CSS Rules --- */
     </style>
 </head>
 <body>
@@ -46,7 +62,7 @@
           {% endif %}
         {% endwith %}
 
-        <form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" id="uploadForm">
+        <form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" id="uploadForm" novalidate>
 
             <div class="form-group">
                 <label for="client_select">Client:</label>
@@ -58,7 +74,6 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="form-group" id="new_client_group">
                 <label for="new_client_input">New Client Name:</label>
                 <input type="text" name="new_client_name" id="new_client_input" placeholder="Enter new client name">
@@ -71,8 +86,7 @@
                 </select>
                 <small>Leave as 'General' or select/add a specific project.</small>
             </div>
-
-            <div class="form-group" id="new_project_group">
+             <div class="form-group" id="new_project_group">
                 <label for="new_project_input">New Project Name:</label>
                 <input type="text" name="new_project_name" id="new_project_input" placeholder="Enter new project name">
             </div>
@@ -80,7 +94,10 @@
             <div class="form-group">
                 <label for="rvtools_file">RVTools File (.xlsx):</label>
                 <input type="file" id="rvtools_file" name="rvtools_file" accept=".xlsx" required>
+                <div id="file_check_status"></div>
             </div>
+
+            <input type="hidden" name="collision_action" id="collision_action" value="">
 
             <button type="submit">Upload and Process</button>
         </form>
@@ -90,45 +107,93 @@
     </div>
 
     <script>
+        // --- Get references ---
         const clientSelect = document.getElementById('client_select');
         const newClientGroup = document.getElementById('new_client_group');
         const newClientInput = document.getElementById('new_client_input');
         const projectSelect = document.getElementById('project_select');
         const newProjectGroup = document.getElementById('new_project_group');
         const newProjectInput = document.getElementById('new_project_input');
+        const fileInput = document.getElementById('rvtools_file');
+        const fileCheckStatus = document.getElementById('file_check_status');
+        const collisionActionInput = document.getElementById('collision_action');
+        const uploadForm = document.getElementById('uploadForm');
         const defaultProjectName = "General";
+        let allowSubmit = true;
 
-        async function fetchProjects(clientName) { /* ... same as before ... */
-            projectSelect.disabled = true; projectSelect.innerHTML = '<option value="" disabled selected>Loading...</option>'; hideNewProjectInput();
-            try {
-                const url = `/get_projects/${encodeURIComponent(clientName)}`; const response = await fetch(url);
-                if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(`HTTP ${response.status}: ${errorData.error || 'Failed fetch'}`);}
-                const data = await response.json();
-                if (data && Array.isArray(data.projects)) { populateProjectDropdown(data.projects); projectSelect.disabled = false; }
-                else { throw new Error("Invalid project data received."); }
-            } catch (error) { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="" disabled selected>-- Error Loading --</option>';}
-        }
-        function populateProjectDropdown(projects) { /* ... same as before ... */
-            projectSelect.innerHTML = '';
-            const defaultOption = document.createElement('option'); defaultOption.value = defaultProjectName; defaultOption.textContent = `${defaultProjectName} (Default)`; defaultOption.selected = true; projectSelect.appendChild(defaultOption);
-            const addNewOption = document.createElement('option'); addNewOption.value = '_new'; addNewOption.textContent = '-- Add New Project --'; projectSelect.appendChild(addNewOption);
-            projects.forEach(project => { if (project.toLowerCase() !== defaultProjectName.toLowerCase()) { const option = document.createElement('option'); option.value = project; option.textContent = project; projectSelect.appendChild(option); } });
-        }
-        function showNewProjectInput() { newProjectGroup.style.display = 'block'; newProjectInput.required = true; newProjectInput.focus(); }
-        function hideNewProjectInput() { newProjectGroup.style.display = 'none'; newProjectInput.required = false; newProjectInput.value = ''; }
+        // --- Helper Functions ---
+        function showNewProjectInput() { newProjectGroup.style.display = 'block'; newProjectInput.required = true; newProjectInput.focus();}
+        function hideNewProjectInput() { newProjectGroup.style.display = 'none'; newProjectInput.required = false; newProjectInput.value = '';}
         function showNewClientInput() { newClientGroup.style.display = 'block'; newClientInput.required = true; newClientInput.focus(); }
-        function hideNewClientInput() { newClientGroup.style.display = 'none'; newClientInput.required = false; newClientInput.value = ''; }
+        function hideNewClientInput() { newClientGroup.style.display = 'none'; newClientInput.required = false; newClientInput.value = '';}
+        function escapeHTML(str) { const div = document.createElement('div'); div.appendChild(document.createTextNode(str)); return div.innerHTML; }
 
-        clientSelect.addEventListener('change', function() { /* ... updated logic from previous step ... */
-            const selectedClient = this.value;
-            projectSelect.innerHTML = '<option value="" disabled selected>-- Select Client First --</option>'; projectSelect.disabled = true; hideNewProjectInput();
-            if (selectedClient === '_new') { showNewClientInput(); populateProjectDropdown([]); projectSelect.disabled = false; }
-            else { hideNewClientInput(); if (selectedClient) { fetchProjects(selectedClient); } }
+        // --- Fetch/Populate Projects ---
+        async function fetchProjects(clientName) {
+            projectSelect.disabled = true; projectSelect.innerHTML = '<option value="" disabled selected>Loading...</option>'; hideNewProjectInput(); fileCheckStatus.textContent = '';
+            try {
+                const url = `/get_projects/${encodeURIComponent(clientName)}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP ${response.status}`); const data = await response.json(); if (data.error) throw new Error(data.error); if (!Array.isArray(data.projects)) throw new Error("Invalid data.");
+                populateProjectDropdown(data.projects); projectSelect.disabled = false; triggerFileCheck();
+            } catch (error) { console.error('Proj Fetch Err:', error); projectSelect.innerHTML = '<option value="" disabled selected>-- Error Loading --</option>'; fileCheckStatus.innerHTML = `<span class="error-message">Error loading projects.</span>`; }
+        }
+        function populateProjectDropdown(projects) {
+            projectSelect.innerHTML = ''; const ph = document.createElement('option'); ph.value = ""; ph.textContent = "-- Select Project --"; ph.disabled = true; ph.selected = true; projectSelect.appendChild(ph);
+            const gen = document.createElement('option'); gen.value = defaultProjectName; gen.textContent = `${defaultProjectName} (Default)`; projectSelect.appendChild(gen);
+            const add = document.createElement('option'); add.value = '_new'; add.textContent = '-- Add New Project --'; projectSelect.appendChild(add);
+            projects.forEach(p => { if (p.toLowerCase() !== defaultProjectName.toLowerCase()) { const o = document.createElement('option'); o.value = p; o.textContent = p; projectSelect.appendChild(o); } });
+            // Set General as selected after populating (if needed) - or handle this via default value logic
+             projectSelect.value = defaultProjectName; // Ensure General is selected after population
+        }
+
+        // --- Check File Existence ---
+        async function checkFileExistence() {
+            const selectedClientValue = clientSelect.value; const selectedProjectValue = projectSelect.value;
+            const newClientName = newClientInput.value.trim(); const newProjectName = newProjectInput.value.trim();
+            const files = fileInput.files;
+            let clientToCheck = ""; let projectToCheck = "";
+            if (selectedClientValue === '_new' && newClientName) clientToCheck = newClientName; else if (selectedClientValue && selectedClientValue !== '_new') clientToCheck = selectedClientValue;
+            if (selectedProjectValue === '_new' && newProjectName) projectToCheck = newProjectName; else if (selectedProjectValue && selectedProjectValue !== '_new') projectToCheck = selectedProjectValue; else projectToCheck = defaultProjectName;
+            fileCheckStatus.textContent = ''; collisionActionInput.value = ''; allowSubmit = true;
+            if (!clientToCheck || !projectToCheck || files.length === 0) { return; } // Exit if not ready
+            const filename = files[0].name;
+            fileCheckStatus.innerHTML = '<span class="status-checking">Checking...</span>';
+            try {
+                const url = `/check_file_exists/${encodeURIComponent(clientToCheck)}/${encodeURIComponent(projectToCheck)}/${encodeURIComponent(filename)}`;
+                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error ${response.status}`); } const data = await response.json(); if (data.error) { throw new Error(data.error); }
+                const collision = data.original_exists || data.analyzed_exists;
+                if (collision) {
+                    fileCheckStatus.innerHTML = `<span class="status-collision">File exists!</span>`;
+                    if (confirm(`"${escapeHTML(filename)}" or its analyzed version already exists.\n\nClick OK to OVERWRITE.\nClick Cancel to CANCEL upload.`)) {
+                        collisionActionInput.value = 'overwrite'; allowSubmit = true; console.log("User chose OVERWRITE.");
+                    } else {
+                        fileInput.value = null; collisionActionInput.value = ''; fileCheckStatus.textContent = 'Upload cancelled.'; allowSubmit = false; console.log("User chose CANCEL upload.");
+                    }
+                } else { fileCheckStatus.innerHTML = '<span class="status-ok">Filename OK.</span>'; collisionActionInput.value = ''; allowSubmit = true; }
+            } catch (error) { console.error('File Check Err:', error); fileCheckStatus.innerHTML = `<span class="error-message">Error checking file: ${error.message}</span>`; allowSubmit = true; }
+        }
+
+        // --- Helper to Trigger Check ---
+        function triggerFileCheck() { if (fileInput.files.length > 0) { checkFileExistence(); } else { fileCheckStatus.textContent = ''; collisionActionInput.value = ''; allowSubmit = true; } }
+
+        // --- Event Listeners ---
+        clientSelect.addEventListener('change', function() {
+            const selectedClient = this.value; projectSelect.innerHTML = '<option value="" disabled selected>-- Select Client First --</option>'; projectSelect.disabled = true; hideNewProjectInput(); fileCheckStatus.textContent = ''; collisionActionInput.value = ''; allowSubmit = true;
+            if (selectedClient === '_new') { showNewClientInput(); populateProjectDropdown([]); projectSelect.disabled = false; } // Handle _new client
+            else { hideNewClientInput(); if (selectedClient) { fetchProjects(selectedClient); } else { triggerFileCheck(); } } // Handle existing client
         });
-        projectSelect.addEventListener('change', function() { /* ... same as before ... */
-            if (this.value === '_new') { showNewProjectInput(); } else { hideNewProjectInput(); }
+        projectSelect.addEventListener('change', function() { if (this.value === '_new') { showNewProjectInput(); } else { hideNewProjectInput(); } triggerFileCheck(); });
+        fileInput.addEventListener('change', triggerFileCheck);
+        newClientInput.addEventListener('blur', triggerFileCheck); // Check when user tabs away
+        newProjectInput.addEventListener('blur', triggerFileCheck); // Check when user tabs away
+
+        uploadForm.addEventListener('submit', function(event) {
+             if (!this.checkValidity()) { event.preventDefault(); event.stopPropagation(); alert("Please fill out all required fields."); return; }
+             if (!allowSubmit) { console.log("Submit prevented."); event.preventDefault(); alert("Upload cancelled. Please select file/options again."); }
+             else { console.log("Submit allowed."); /* Action value is set */ }
         });
-        projectSelect.disabled = true; hideNewClientInput(); hideNewProjectInput(); // Initial state
+
+        // --- Initial setup ---
+        projectSelect.disabled = true; hideNewClientInput(); hideNewProjectInput();
     </script>
 </body>
 </html>
