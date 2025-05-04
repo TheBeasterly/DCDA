@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RVTools Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6; margin: 20px; background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 650px; margin: 30px auto; padding: 25px; border: 1px solid #ddd;
+            border-radius: 8px; background-color: #ffffff; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 25px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #555; }
+        input[type="text"], input[type="file"], select {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;
+            box-sizing: border-box; font-size: 1rem;
+        }
+        input[type="file"] { padding: 5px; }
+        select:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.7;}
+        button[type="submit"] {
+            background-color: #007bff; color: white; padding: 12px 20px; border: none;
+            border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 600;
+            width: 100%; transition: background-color 0.2s ease;
+        }
+        button[type="submit"]:hover { background-color: #0056b3; }
+        .flash-message { padding: 12px; margin-bottom: 20px; border-radius: 4px; border: 1px solid transparent; font-size: 0.95rem; }
+        .flash-message.error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .flash-message.info { background-color: #e2e3e5; border-color: #d6d8db; color: #383d41; }
+        #new_client_group, #new_project_group { display: none; margin-top: 10px; padding-left: 15px; border-left: 3px solid #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RVTools Analysis</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message {{ category if category else 'info' }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data" id="uploadForm">
+
+            <div class="form-group">
+                <label for="client_select">Client:</label>
+                <select name="selected_client" id="client_select" required>
+                    <option value="" disabled selected>-- Select Existing Client --</option>
+                    <option value="_new">-- Add New Client --</option>
+                    {% for client in client_list %}
+                        <option value="{{ client }}">{{ client }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" id="new_client_group">
+                <label for="new_client_input">New Client Name:</label>
+                <input type="text" name="new_client_name" id="new_client_input" placeholder="Enter new client name">
+            </div>
+
+            <div class="form-group">
+                <label for="project_select">Project:</label>
+                <select name="selected_project" id="project_select" disabled>
+                    <option value="" disabled selected>-- Select Client First --</option>
+                </select>
+                <small>Leave as 'General' or select/add a specific project.</small>
+            </div>
+
+            <div class="form-group" id="new_project_group">
+                <label for="new_project_input">New Project Name:</label>
+                <input type="text" name="new_project_name" id="new_project_input" placeholder="Enter new project name">
+            </div>
+
+            <div class="form-group">
+                <label for="rvtools_file">RVTools File (.xlsx):</label>
+                <input type="file" id="rvtools_file" name="rvtools_file" accept=".xlsx" required>
+            </div>
+
+            <button type="submit">Upload and Process</button>
+        </form>
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="{{ url_for('index') }}">&larr; Back to Home</a>
+        </p>
+    </div>
+
+    <script>
+        const clientSelect = document.getElementById('client_select');
+        const newClientGroup = document.getElementById('new_client_group');
+        const newClientInput = document.getElementById('new_client_input');
+        const projectSelect = document.getElementById('project_select');
+        const newProjectGroup = document.getElementById('new_project_group');
+        const newProjectInput = document.getElementById('new_project_input');
+        const defaultProjectName = "General";
+
+        async function fetchProjects(clientName) { /* ... same as before ... */
+            projectSelect.disabled = true; projectSelect.innerHTML = '<option value="" disabled selected>Loading...</option>'; hideNewProjectInput();
+            try {
+                const url = `/get_projects/${encodeURIComponent(clientName)}`; const response = await fetch(url);
+                if (!response.ok) { const errorData = await response.json().catch(() => ({})); throw new Error(`HTTP ${response.status}: ${errorData.error || 'Failed fetch'}`);}
+                const data = await response.json();
+                if (data && Array.isArray(data.projects)) { populateProjectDropdown(data.projects); projectSelect.disabled = false; }
+                else { throw new Error("Invalid project data received."); }
+            } catch (error) { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="" disabled selected>-- Error Loading --</option>';}
+        }
+        function populateProjectDropdown(projects) { /* ... same as before ... */
+            projectSelect.innerHTML = '';
+            const defaultOption = document.createElement('option'); defaultOption.value = defaultProjectName; defaultOption.textContent = `${defaultProjectName} (Default)`; defaultOption.selected = true; projectSelect.appendChild(defaultOption);
+            const addNewOption = document.createElement('option'); addNewOption.value = '_new'; addNewOption.textContent = '-- Add New Project --'; projectSelect.appendChild(addNewOption);
+            projects.forEach(project => { if (project.toLowerCase() !== defaultProjectName.toLowerCase()) { const option = document.createElement('option'); option.value = project; option.textContent = project; projectSelect.appendChild(option); } });
+        }
+        function showNewProjectInput() { newProjectGroup.style.display = 'block'; newProjectInput.required = true; newProjectInput.focus(); }
+        function hideNewProjectInput() { newProjectGroup.style.display = 'none'; newProjectInput.required = false; newProjectInput.value = ''; }
+        function showNewClientInput() { newClientGroup.style.display = 'block'; newClientInput.required = true; newClientInput.focus(); }
+        function hideNewClientInput() { newClientGroup.style.display = 'none'; newClientInput.required = false; newClientInput.value = ''; }
+
+        clientSelect.addEventListener('change', function() { /* ... updated logic from previous step ... */
+            const selectedClient = this.value;
+            projectSelect.innerHTML = '<option value="" disabled selected>-- Select Client First --</option>'; projectSelect.disabled = true; hideNewProjectInput();
+            if (selectedClient === '_new') { showNewClientInput(); populateProjectDropdown([]); projectSelect.disabled = false; }
+            else { hideNewClientInput(); if (selectedClient) { fetchProjects(selectedClient); } }
+        });
+        projectSelect.addEventListener('change', function() { /* ... same as before ... */
+            if (this.value === '_new') { showNewProjectInput(); } else { hideNewProjectInput(); }
+        });
+        projectSelect.disabled = true; hideNewClientInput(); hideNewProjectInput(); // Initial state
+    </script>
+</body>
+</html>

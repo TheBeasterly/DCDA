@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing RVTools File</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        #progress-log {
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            padding: 15px;
+            height: 300px; /* Adjust as needed */
+            overflow-y: scroll; /* Enable scrolling */
+            margin-bottom: 15px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            white-space: pre-wrap; /* Keep formatting like newlines if any, but wrap */
+        }
+        #progress-log p {
+            margin: 0 0 5px 0; /* Spacing between messages */
+            padding: 0;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 3px;
+        }
+        #result.success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        #result.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        #result a {
+            color: #0056b3;
+            font-weight: bold;
+            text-decoration: none;
+        }
+         #result a:hover {
+             text-decoration: underline;
+         }
+        .spinner {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block; /* Initially shown */
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processing File: {{ original_filename }} <span id="spinner" class="spinner"></span></h1>
+
+        <h2>Progress Log:</h2>
+        <div id="progress-log">
+            <p>Connecting to analysis stream...</p>
+        </div>
+
+        <div id="result">
+            </div>
+         <p><a href="{{ url_for('index') }}">Upload another file</a></p>
+    </div>
+
+    <script>
+        // Get the unique input filename passed from Flask/Jinja
+        // Using |tojson ensures it's correctly formatted as a JavaScript string, handling special chars
+        const inputFilename = {{ input_filename | tojson }};
+        const streamUrl = `/stream/${inputFilename}`;
+
+        const progressLog = document.getElementById('progress-log');
+        const resultDiv = document.getElementById('result');
+        const spinner = document.getElementById('spinner');
+
+        // Function to add messages to the log and scroll down
+        function logMessage(message) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            progressLog.appendChild(p);
+            // Auto-scroll to the bottom
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        logMessage(`Establishing connection to ${streamUrl}...`);
+
+        // Create the EventSource connection
+        const eventSource = new EventSource(streamUrl);
+
+        // --- Event Listener for standard messages ---
+        eventSource.onmessage = function(event) {
+            // event.data contains the message sent from the server
+            logMessage(event.data);
+        };
+
+        // --- Event Listener for the custom 'result' event ---
+        eventSource.addEventListener('result', function(event) {
+            logMessage("Received final result. Closing connection.");
+            spinner.style.display = 'none'; // Hide spinner
+            eventSource.close(); // Close the connection
+
+            try {
+                const resultData = JSON.parse(event.data);
+
+                if (resultData.success) {
+                    // Success! Create download link
+                    const downloadFilename = resultData.message; // This should be the output filename
+                    const downloadUrl = `/download/${encodeURIComponent(downloadFilename)}`;
+                    resultDiv.innerHTML = `<strong>Success!</strong> Analysis complete. <br>Your file is ready: <a href="${downloadUrl}" download>${downloadFilename}</a>`;
+                    resultDiv.className = 'success'; // Apply success styling
+                } else {
+                    // Failure! Display error message
+                    resultDiv.innerHTML = `<strong>Error:</strong> ${resultData.message}`;
+                    resultDiv.className = 'error'; // Apply error styling
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `<strong>Error:</strong> Failed to parse final result data. ${e}`;
+                resultDiv.className = 'error';
+                console.error("Error parsing result event data:", event.data, e);
+            }
+        });
+
+        // --- Event Listener for errors ---
+        eventSource.onerror = function(event) {
+            logMessage('Error connecting to stream or stream closed.');
+            console.error("EventSource failed:", event);
+            spinner.style.display = 'none'; // Hide spinner
+
+            // Check if the connection is already closed before showing error
+            if (eventSource.readyState === EventSource.CLOSED) {
+                 logMessage('Connection closed normally or task finished.');
+                 // Don't show error if connection closed after 'result' typically
+                 if (!resultDiv.innerHTML) { // Only show generic error if no result was processed
+                    resultDiv.innerHTML = 'Connection to server closed.';
+                    resultDiv.className = 'error';
+                 }
+            } else {
+                // A real connection error occurred
+                 resultDiv.innerHTML = '<strong>Error:</strong> Connection to the server failed or was interrupted.';
+                 resultDiv.className = 'error';
+            }
+            eventSource.close(); // Ensure connection is closed on error
+        };
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processing RVTools File</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-width: 800px;
+            margin: 30px auto;
+        }
+        h1, h2, h3 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        h1 { font-size: 1.6em; }
+        h2 { font-size: 1.3em; margin-top: 25px; }
+        h3 { font-size: 1.1em; border-bottom: none; margin-bottom: 5px;}
+
+        #task-info {
+             background-color: #e9ecef;
+             padding: 10px 15px;
+             border-radius: 4px;
+             margin-bottom: 20px;
+             font-size: 0.9em;
+             border: 1px solid #ced4da;
+        }
+         #task-info strong { color: #495057; }
+
+        #progress-log {
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            padding: 15px;
+            height: 300px; /* Adjust as needed */
+            overflow-y: scroll; /* Enable scrolling */
+            margin-bottom: 15px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            white-space: pre-wrap; /* Keep formatting, but wrap lines */
+            line-height: 1.4;
+        }
+        #progress-log p {
+            margin: 0 0 4px 0; /* Spacing between messages */
+            padding: 0;
+            word-wrap: break-word;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+        #result.success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        #result.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        #result a {
+            color: #0056b3;
+            font-weight: 600;
+            text-decoration: none;
+        }
+         #result a:hover {
+             text-decoration: underline;
+         }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .nav-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .nav-link:hover {
+             background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processing File <span id="spinner" class="spinner"></span></h1>
+        <div id="task-info">
+            <strong>File:</strong> {{ display_filename }}<br>
+            <strong>Client:</strong> {{ client_name }}<br>
+            <strong>Project:</strong> {{ project_name }}
+        </div>
+
+        <h2>Progress Log:</h2>
+        <div id="progress-log">
+            <p>Connecting to analysis stream...</p>
+        </div>
+
+        <div id="result">
+            </div>
+         <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home Page</a>
+    </div>
+
+    <script>
+        // Get the unique task ID passed from Flask/Jinja
+        const taskId = {{ task_id | tojson }};
+        // Construct the stream URL using task_id
+        const streamUrl = `/stream/${taskId}`;
+
+        const progressLog = document.getElementById('progress-log');
+        const resultDiv = document.getElementById('result');
+        const spinner = document.getElementById('spinner');
+
+        // Function to safely add messages to the log and scroll down
+        function logMessage(message) {
+            const p = document.createElement('p');
+            // Set textContent to prevent potential XSS if message somehow contained HTML
+            p.textContent = message;
+            progressLog.appendChild(p);
+            // Auto-scroll to the bottom
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        logMessage(`Establishing connection to ${streamUrl}...`);
+
+        // Create the EventSource connection
+        const eventSource = new EventSource(streamUrl);
+
+        // --- Event Listener for standard 'message' events ---
+        eventSource.onmessage = function(event) {
+            // event.data contains the progress message string
+            logMessage(event.data);
+        };
+
+        // --- Event Listener for the custom 'result' event ---
+        eventSource.addEventListener('result', function(event) {
+            logMessage("Received final result. Closing connection.");
+            spinner.style.display = 'none'; // Hide spinner
+            eventSource.close(); // Close the SSE connection
+
+            try {
+                const resultData = JSON.parse(event.data);
+
+                if (resultData.success) {
+                    // Success! Create download link
+                    // resultData.message now contains the RELATIVE download path
+                    // e.g., "ClientA/_general/Analyzed/RVTools_Export-ANALYZED.xlsx"
+                    const relativeDownloadPath = resultData.message;
+
+                    // Make sure the path is not empty or invalid before proceeding
+                    if (!relativeDownloadPath || typeof relativeDownloadPath !== 'string') {
+                        throw new Error("Invalid download path received from server.");
+                    }
+
+                    // Construct the final download URL for the <a> tag's href
+                    // We need to encode the components to handle special characters safely in the URL path
+                    const downloadUrl = `/download/${encodeURIComponent(relativeDownloadPath)}`;
+
+                    // Extract just the filename from the relative path for display purposes
+                    const downloadFilenameForDisplay = relativeDownloadPath.split('/').pop();
+
+                    // Update the result div with the download link
+                    resultDiv.innerHTML = `<h3>Success!</h3> Analysis complete. <br>Your file is ready: <a href="${downloadUrl}" download>${downloadFilenameForDisplay || 'Download File'}</a>`;
+                    resultDiv.className = 'success'; // Apply success styling
+
+                } else {
+                    // Failure! Display error message from the server
+                    resultDiv.innerHTML = `<h3>Error</h3> ${resultData.message || 'An unknown error occurred.'}`;
+                    resultDiv.className = 'error'; // Apply error styling
+                }
+            } catch (e) {
+                // Catch errors during JSON parsing or link creation
+                resultDiv.innerHTML = `<h3>Error</h3> Failed to process final result data. ${e}`;
+                resultDiv.className = 'error';
+                console.error("Error parsing result event data:", event.data, e);
+            }
+        });
+
+        // --- Event Listener for SSE errors ---
+        eventSource.onerror = function(event) {
+            logMessage('Error connecting to stream or stream interrupted.');
+            console.error("EventSource failed:", event);
+            spinner.style.display = 'none'; // Hide spinner
+
+            // Check if the connection is already closed or if it's a real-time error
+            if (eventSource.readyState === EventSource.CLOSED) {
+                 logMessage('Connection closed.');
+                 // Don't overwrite a success/error message already shown in resultDiv
+                 if (!resultDiv.innerHTML) {
+                    resultDiv.innerHTML = 'Connection to server closed or task finished.';
+                    resultDiv.className = 'error'; // Use error style for generic closed message if no result
+                 }
+            } else {
+                // A real connection error occurred while potentially still open
+                 resultDiv.innerHTML = '<strong>Error:</strong> Connection to the server failed or was interrupted.';
+                 resultDiv.className = 'error';
+            }
+            eventSource.close(); // Ensure connection is closed on error
+        };
+
+    </script>
+</body>
+</html>
