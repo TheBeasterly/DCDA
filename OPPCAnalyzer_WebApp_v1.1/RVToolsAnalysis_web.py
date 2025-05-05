@@ -757,8 +757,10 @@ def consol_vSum(destfile):
             in_use_gb_cell = vSum_ws.cell(row=row_idx, column=in_use_gb_col_idx)
 
             consumed_value = consumed_gb_cell.value
-            # Check if None or empty string after stripping whitespace
-            if consumed_value is None or (isinstance(consumed_value, str) and consumed_value.strip() == ""):
+            # Check if None, empty string (after stripping), OR numerically zero
+            if consumed_value is None or \
+               (isinstance(consumed_value, str) and consumed_value.strip() == "") or \
+               consumed_value == 0:
                  consumed_gb_cell.value = in_use_gb_cell.value
                  # Copy number format if source cell has one
                  if in_use_gb_cell.has_style and in_use_gb_cell.number_format:

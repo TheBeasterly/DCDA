@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - {{ client_name }}/{{ project_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .container {
+            max-width: 95%; /* Allow wider container for potentially wide tables */
+            margin: auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+            word-break: break-word; /* Break long filenames */
+        }
+        h2 {
+            color: #444;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .breadcrumbs {
+            margin-bottom: 25px;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .breadcrumbs a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .breadcrumbs a:hover { text-decoration: underline; }
+        .table-responsive { margin-bottom: 30px; }
+        /* Ensure Bootstrap table styles apply well */
+        .table { width: 100%; margin-bottom: 1rem; color: #212529; }
+        .table th, .table td { padding: 0.6rem; vertical-align: top; border-top: 1px solid #dee2e6; }
+        .table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; }
+        .table-sm th, .table-sm td { padding: 0.4rem; }
+        /* Override pandas default alignment if needed */
+        /* th { text-align: inherit; } */
+        .nav-link {
+            display: inline-block; margin-top: 30px; color: #007bff; text-decoration: none;
+            padding: 8px 0; border-bottom: 1px solid transparent; font-size: 0.9em;
+        }
+        .nav-link:hover { border-bottom-color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumbs">
+            <a href="{{ url_for('index') }}">Home</a> &gt;
+            <a href="{{ url_for('browse_existing') }}">Browse</a> &gt;
+            {{ client_name }} &gt;
+            {{ project_name }} &gt;
+            Results
+        </div>
+
+        <h1>Analysis Results</h1>
+        <p>
+            <strong>Client:</strong> {{ client_name }}<br>
+            <strong>Project:</strong> {{ project_name }}<br>
+            <strong>Source File:</strong> {{ analyzed_filename }}
+        </p>
+
+        {% for sheet_name, table_html in summary_tables.items() %}
+            <h2>{{ sheet_name.replace('_', ' ') }}</h2> {# Replace underscores in sheet name for display #}
+            <div class="table-responsive"> {# Make tables scroll horizontally on small screens #}
+                {% if table_html and 'table' in table_html %} {# Basic check if HTML seems valid #}
+                    {{ table_html | safe }} {# Render the HTML table safely #}
+                {% else %}
+                    <p><em>{{ table_html }}</em></p> {# Display message like 'Sheet not found' #}
+                {% endif %}
+            </div>
+        {% else %}
+            <p><em>No summary data could be loaded from the analyzed file.</em></p>
+        {% endfor %}
+
+        {# Consider linking back to the specific file browser page if needed,
+           requires passing client/project back or modifying browse route #}
+        <a href="{{ url_for('browse_existing') }}" class="nav-link" style="margin-right: 15px;">&larr; Browse Projects</a>
+        <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home</a>
+
+    </div>
+
+    </body>
+</html>
