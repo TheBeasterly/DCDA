@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Projects</title>
+    <style>
+        /* Styles included from previous versions */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; line-height: 1.6; }
+        .container { max-width: 900px; margin: 30px auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 25px; font-size: 1.8em; text-align: center;}
+        h2 { color: #444; margin-top: 30px; margin-bottom: 15px; font-size: 1.4em; border-bottom: 1px solid #eee; padding-bottom: 8px;}
+        .controls { display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap; background-color: #f9f9f9; padding: 20px; border-radius: 5px; border: 1px solid #eee;}
+        .form-group { flex: 1; min-width: 250px; } /* Adjusted min-width */
+        label { display: block; margin-bottom: 6px; font-weight: 600; color: #555; font-size: 0.95em;}
+        select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1rem; background-color: #fff;}
+        select:disabled { background-color: #e9ecef; cursor: not-allowed; opacity: 0.7;}
+        #file_list_area { margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee;}
+        #file_list_area ul { list-style: none; padding: 0; margin-top: 10px;}
+        #file_list_area li { margin-bottom: 10px; padding: 5px 0; border-bottom: 1px dotted #eee; }
+        #file_list_area li:last-child { border-bottom: none; }
+        #file_list_area li .filename { font-weight: 500; display: inline-block; margin-right: 15px; word-break: break-all; max-width: 70%; } /* Display filename */
+        #file_list_area li .actions { float: right; white-space: nowrap; } /* Align actions to the right */
+        #file_list_area li .action-link { /* Common style for links */
+            display: inline-block; padding: 4px 8px; color: #007bff; text-decoration: none;
+            border-radius: 4px; transition: background-color 0.2s ease, color 0.2s ease;
+            border: 1px solid transparent; font-size: 0.85em; margin-left: 5px;
+        }
+        #file_list_area li a.action-link:hover { background-color: #007bff; color: white; border-color: #007bff;}
+        #file_list_area li a.view-results-link { /* Specific style if needed */
+            background-color: #28a745; border-color: #28a745; color: white;
+        }
+         #file_list_area li a.view-results-link:hover {
+             background-color: #218838; border-color: #1e7e34;
+         }
+
+        .no-files, .loading-message, .error-message { color: #6c757d; font-style: italic; margin-left: 10px; padding: 10px;}
+        .error-message { color: #dc3545; font-style: normal; font-weight: bold;}
+        .nav-link { display: inline-block; margin-top: 30px; color: #007bff; text-decoration: none; padding: 8px 0; border-bottom: 1px solid transparent; font-size: 0.9em; }
+        .nav-link:hover { border-bottom-color: #007bff; }
+        /* Flash message styling */
+         .flash-message { padding: 12px; margin-bottom: 20px; border-radius: 4px; border: 1px solid transparent; font-size: 0.95rem; }
+         .flash-message.error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+         .flash-message.info { background-color: #e2e3e5; border-color: #d6d8db; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Browse Existing Projects</h1>
+
+         {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-message {{ category if category else 'info' }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="controls">
+            <div class="form-group">
+                <label for="client_browse_select">1. Select Client:</label>
+                <select id="client_browse_select">
+                    <option value="" disabled selected>-- Select Client --</option>
+                    {% if client_list %}
+                        {% for client in client_list %}
+                            <option value="{{ client }}">{{ client }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled>No clients found</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="project_browse_select">2. Select Project:</label>
+                <select id="project_browse_select" disabled>
+                    <option value="" disabled selected>-- Select Client First --</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="file_list_area">
+            <p class="no-files">Please select a client and project to view files.</p>
+        </div>
+
+        <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home</a>
+    </div>
+
+    <script>
+        // --- Get references ---
+        const clientSelect = document.getElementById('client_browse_select');
+        const projectSelect = document.getElementById('project_browse_select');
+        const fileListArea = document.getElementById('file_list_area');
+        const defaultProjectName = "General";
+
+        // --- Fetch Projects ---
+        async function fetchProjects(clientName) {
+            projectSelect.disabled = true; projectSelect.innerHTML = '<option value="" disabled selected>Loading...</option>'; fileListArea.innerHTML = '<p class="loading-message">Select a project...</p>';
+            try {
+                const url = `/get_projects/${encodeURIComponent(clientName)}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP ${response.status}`); const data = await response.json(); if (data.error) throw new Error(data.error); if (!Array.isArray(data.projects)) throw new Error("Invalid data.");
+                populateProjectDropdown(data.projects); projectSelect.disabled = false;
+            } catch (error) { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="" disabled selected>-- Error --</option>'; fileListArea.innerHTML = `<p class="error-message">Could not load projects.</p>`; }
+        }
+
+        // --- Populate Project Dropdown ---
+        function populateProjectDropdown(projects) {
+            projectSelect.innerHTML = ''; const ph = document.createElement('option'); ph.value = ""; ph.textContent = "-- Select Project --"; ph.disabled = true; ph.selected = true; projectSelect.appendChild(ph);
+            const gen = document.createElement('option'); gen.value = defaultProjectName; gen.textContent = defaultProjectName; projectSelect.appendChild(gen); // Add General always
+            projects.forEach(p => { if (p.toLowerCase() !== defaultProjectName.toLowerCase()) { const o = document.createElement('option'); o.value = p; o.textContent = p; projectSelect.appendChild(o); } });
+             projectSelect.value = defaultProjectName; // Default selection to General
+             projectSelect.dispatchEvent(new Event('change')); // Trigger change to load files for General automatically
+        }
+
+        // --- Fetch Files ---
+        async function fetchFiles(clientName, projectName) {
+            fileListArea.innerHTML = '<p class="loading-message">Loading files...</p>';
+            try {
+                const url = `/get_files/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP ${response.status}`); const data = await response.json(); if (data.error) throw new Error(data.error); if (typeof data.originals === 'undefined' || typeof data.analyzed === 'undefined') { throw new Error("Invalid file data."); }
+                renderFileLists(clientName, projectName, data.originals, data.analyzed);
+            } catch (error) { console.error('Error fetching files:', error); fileListArea.innerHTML = `<p class="error-message">Could not load files.</p>`; }
+        }
+
+        // --- *** UPDATED Function to render the file lists *** ---
+        function renderFileLists(client, project, originals, analyzed) {
+            fileListArea.innerHTML = ''; // Clear previous content
+
+            // --- Originals Section ---
+            const originalsDiv = document.createElement('div');
+            originalsDiv.innerHTML = '<h2>Original Files</h2>';
+            const originalsUl = document.createElement('ul');
+            if (originals && originals.length > 0) {
+                originals.forEach(file => {
+                    const li = document.createElement('li');
+                    const actionsSpan = document.createElement('span'); // Span to hold actions, easier to float right
+                    actionsSpan.className = 'actions';
+
+                    const link = document.createElement('a');
+                    const downloadPath = `${client}/${project}/Originals/${file}`;
+                    link.href = `/download/${encodeURIComponent(downloadPath)}`;
+                    link.textContent = 'Download'; // Link text is now action
+                    link.classList.add('action-link');
+                    // link.download = file; // Optional
+
+                    actionsSpan.appendChild(link); // Add link to actions span
+
+                    const nameSpan = document.createElement('span'); // Span for filename
+                    nameSpan.className = 'filename';
+                    nameSpan.textContent = file;
+
+                    li.appendChild(nameSpan); // Add filename first
+                    li.appendChild(actionsSpan); // Add actions span
+                    originalsUl.appendChild(li);
+                });
+            } else {
+                originalsDiv.innerHTML += '<p class="no-files">No original files found.</p>';
+            }
+            originalsDiv.appendChild(originalsUl);
+            fileListArea.appendChild(originalsDiv);
+
+            // --- Analyzed Section ---
+            const analyzedDiv = document.createElement('div');
+            analyzedDiv.innerHTML = '<h2>Analyzed Files</h2>';
+            const analyzedUl = document.createElement('ul');
+            if (analyzed && analyzed.length > 0) {
+                analyzed.forEach(file => { // 'file' here is e.g., OriginalFile-ANALYZED.xlsx
+                    const li = document.createElement('li');
+                    const actionsSpan = document.createElement('span');
+                    actionsSpan.className = 'actions';
+
+                    // Download Link
+                    const downloadLink = document.createElement('a');
+                    const downloadPath = `${client}/${project}/Analyzed/${file}`;
+                    downloadLink.href = `/download/${encodeURIComponent(downloadPath)}`;
+                    downloadLink.textContent = 'Download';
+                    downloadLink.classList.add('action-link');
+                    // downloadLink.download = file; // Optional
+
+                    // View Results Link (NEW)
+                    const resultsLink = document.createElement('a');
+                    const resultsUrl = `/results/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
+                    resultsLink.href = resultsUrl;
+                    resultsLink.textContent = 'View Results';
+                    resultsLink.classList.add('action-link', 'view-results-link'); // Add specific class for styling
+
+                    actionsSpan.appendChild(downloadLink);
+                    actionsSpan.appendChild(resultsLink); // Add second link
+
+                    const nameSpan = document.createElement('span'); // Span for filename
+                    nameSpan.className = 'filename';
+                    nameSpan.textContent = file;
+
+                    li.appendChild(nameSpan); // Filename first
+                    li.appendChild(actionsSpan); // Then actions
+                    analyzedUl.appendChild(li);
+                });
+            } else {
+                analyzedDiv.innerHTML += '<p class="no-files">No analyzed files found.</p>';
+            }
+            analyzedDiv.appendChild(analyzedUl);
+            fileListArea.appendChild(analyzedDiv);
+        }
+
+        // --- Helper to escape HTML ---
+        function escapeHTML(str) { const d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; }
+
+        // --- Event Listeners ---
+        clientSelect.addEventListener('change', function() {
+            const selectedClient = this.value;
+            projectSelect.innerHTML = '<option value="" disabled selected>-- Select Client First --</option>'; projectSelect.disabled = true;
+            fileListArea.innerHTML = '<p class="no-files">Please select a client and project.</p>'; // Reset file list
+            if (selectedClient) { fetchProjects(selectedClient); }
+        });
+
+        projectSelect.addEventListener('change', function() {
+             const selectedProject = this.value;
+             const selectedClient = clientSelect.value;
+             fileListArea.innerHTML = ''; // Clear file list display
+             if (selectedProject && selectedClient) { fetchFiles(selectedClient, selectedProject); }
+             else { fileListArea.innerHTML = '<p class="no-files">Please select a project.</p>'; }
+        });
+
+        // --- Initial State ---
+         projectSelect.disabled = true; // Ensure project select starts disabled
+
+    </script>
+</body>
+</html>
