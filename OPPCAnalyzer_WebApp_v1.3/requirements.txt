@@ -1,0 +1,4 @@
+# requirements.txt
+Flask>=2.0
+openpyxl>=3.0
+pandas>=1.3

@@ -11,9 +11,10 @@
             background-color: #f8f9fa;
             padding-top: 20px;
             padding-bottom: 40px;
+            line-height: 1.6; /* Added for better readability */
         }
         .container {
-            max-width: 95%; /* Allow wider container for potentially wide tables */
+            max-width: 95%; /* Wider container */
             margin: auto;
             background-color: #fff;
             padding: 30px;
@@ -26,7 +27,7 @@
             padding-bottom: 15px;
             margin-bottom: 15px;
             font-size: 1.8em;
-            word-break: break-word; /* Break long filenames */
+            word-break: break-word;
         }
         h2 {
             color: #444;
@@ -47,13 +48,21 @@
         }
         .breadcrumbs a:hover { text-decoration: underline; }
         .table-responsive { margin-bottom: 30px; }
-        /* Ensure Bootstrap table styles apply well */
+        /* Base Bootstrap table styles */
         .table { width: 100%; margin-bottom: 1rem; color: #212529; }
-        .table th, .table td { padding: 0.6rem; vertical-align: top; border-top: 1px solid #dee2e6; }
-        .table thead th { vertical-align: bottom; border-bottom: 2px solid #dee2e6; }
+        .table th, .table td { padding: 0.6rem; border-top: 1px solid #dee2e6; }
+        .table thead th { border-bottom: 2px solid #dee2e6; }
         .table-sm th, .table-sm td { padding: 0.4rem; }
-        /* Override pandas default alignment if needed */
-        /* th { text-align: inherit; } */
+
+        /* --- ADDED/MODIFIED ALIGNMENT RULE --- */
+        /* Align text left and vertically middle for ALL table cells */
+        .table th,
+        .table td {
+            text-align: left;      /* Horizontal Left */
+            vertical-align: middle; /* Vertical Center */
+        }
+        /* --- END OF ADDED/MODIFIED RULE --- */
+
         .nav-link {
             display: inline-block; margin-top: 30px; color: #007bff; text-decoration: none;
             padding: 8px 0; border-bottom: 1px solid transparent; font-size: 0.9em;
@@ -79,20 +88,20 @@
         </p>
 
         {% for sheet_name, table_html in summary_tables.items() %}
-            <h2>{{ sheet_name.replace('_', ' ') }}</h2> {# Replace underscores in sheet name for display #}
-            <div class="table-responsive"> {# Make tables scroll horizontally on small screens #}
-                {% if table_html and 'table' in table_html %} {# Basic check if HTML seems valid #}
+            <h2>{{ sheet_name.replace('_', ' ') }}</h2> {# Format sheet name for display #}
+            <div class="table-responsive">
+                {% if table_html and '<table' in table_html %} {# Check if it looks like table HTML #}
                     {{ table_html | safe }} {# Render the HTML table safely #}
+                {% elif table_html %}
+                     <p><em>{{ table_html }}</em></p> {# Display non-table message (e.g., 'Sheet not found') #}
                 {% else %}
-                    <p><em>{{ table_html }}</em></p> {# Display message like 'Sheet not found' #}
+                      <p><em>Data for this summary could not be loaded or is not available.</em></p>
                 {% endif %}
             </div>
         {% else %}
             <p><em>No summary data could be loaded from the analyzed file.</em></p>
         {% endfor %}
 
-        {# Consider linking back to the specific file browser page if needed,
-           requires passing client/project back or modifying browse route #}
         <a href="{{ url_for('browse_existing') }}" class="nav-link" style="margin-right: 15px;">&larr; Browse Projects</a>
         <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home</a>
 
