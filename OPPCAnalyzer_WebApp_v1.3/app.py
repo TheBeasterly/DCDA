@@ -3,6 +3,7 @@ import os
 import uuid
 import time
 import json
+import html
 import traceback
 import pandas as pd # Make sure pandas is imported
 from flask import (Flask, request, render_template, redirect,
@@ -199,45 +200,92 @@ def download_file(filepath):
 
 @app.route('/results/<client_name>/<project_name>/<path:analyzed_filename>')
 def view_results(client_name, project_name, analyzed_filename):
-    """Reads summary sheets from an analyzed Excel file and displays them."""
-    print(f"Results Request: C='{client_name}', P='{project_name}', F='{analyzed_filename}'")
-    safe_client_name = secure_filename(client_name); safe_project_name = secure_filename(project_name)
+    """
+    Reads summary sheets from an analyzed Excel file, converts data to JSON,
+    and passes it to the results template for client-side rendering.
+    """
+    print(f"Results Request: Loading data for C='{client_name}', P='{project_name}', F='{analyzed_filename}'")
+    safe_client_name = secure_filename(client_name)
+    safe_project_name = secure_filename(project_name)
+
     if not safe_client_name or not safe_project_name or not analyzed_filename:
-        flash("Invalid client, project, or filename.", "error"); return redirect(url_for('browse_page'))
+        flash("Invalid client, project, or filename specified.", "error")
+        return redirect(url_for('browse_page')) # Redirect to browse home
 
-    summary_data_json = {}; filepath_valid = False; analyzed_filepath = ""
-    expected_sheets = [ 'Overall Summary Totals', 'Overall Powerstate Counts', 'Datacenter Summary Combined' ]
+    # Construct the expected full path to the analyzed file
+    summary_data_json = {} # Dictionary to hold JSON data for each table
+    expected_sheets = [
+        'Overall Summary Totals',
+        'Overall Powerstate Counts',
+        'Datacenter Summary Combined'
+    ]
+    filepath_valid = False
+    analyzed_filepath = ""
 
-    try: # Construct and validate path
-        analyzed_filepath = os.path.normpath(os.path.join(app.config['DATA_FOLDER'], safe_client_name, safe_project_name, 'Analyzed', analyzed_filename))
+    try:
+        analyzed_filepath = os.path.normpath(os.path.join(
+            app.config['DATA_FOLDER'], safe_client_name, safe_project_name, 'Analyzed', analyzed_filename
+        ))
         data_folder_abs = os.path.abspath(app.config['DATA_FOLDER'])
-        if not os.path.abspath(analyzed_filepath).startswith(data_folder_abs): raise ValueError("Invalid path.")
-        if not os.path.isfile(analyzed_filepath): raise FileNotFoundError(f"File not found: {analyzed_filepath}")
+        if not os.path.abspath(analyzed_filepath).startswith(data_folder_abs):
+             raise ValueError("Invalid file path (potential traversal).")
+        if not os.path.isfile(analyzed_filepath):
+            raise FileNotFoundError(f"Analyzed file not found at: {analyzed_filepath}")
         filepath_valid = True
-    except FileNotFoundError as e: print(f"Results Error: {e}"); flash(f"File not found: {analyzed_filename}.", "error"); return redirect(url_for('browse_page'))
-    except Exception as path_err: print(f"Results Path Error: {path_err}"); flash("Path error.", "error"); return redirect(url_for('browse_page'))
 
-    # Read sheets and convert to JSON
+    except FileNotFoundError as e:
+        print(f"Results Error: File not found: {e}")
+        # Use html.escape for safety when inserting filename into flash message format string
+        flash(f"Analyzed file '{html.escape(analyzed_filename)}' not found.", "error")
+        return redirect(url_for('browse_page'))
+    except Exception as path_err:
+         print(f"Results Error: Constructing path: {path_err}")
+         flash("Error determining file path.", "error")
+         return redirect(url_for('browse_page'))
+
+    # --- Read Summary Sheets and Convert to JSON ---
     if filepath_valid:
         try:
-            excel_data = pd.read_excel(analyzed_filepath, sheet_name=expected_sheets, engine='openpyxl')
+            print(f"Results Info: Reading Excel file: {analyzed_filepath}")
+            excel_data = pd.read_excel(
+                analyzed_filepath, sheet_name=expected_sheets, engine='openpyxl', skipfooter=1
+            )
+            print(f"Results Info: Successfully read sheets: {list(excel_data.keys())}")
+
             for sheet_name in expected_sheets:
                 if sheet_name in excel_data:
                     df = excel_data[sheet_name]
-                    # --- ADDED DEBUG LOG HERE ---
-                    print(f"DEBUG: Columns for sheet '{sheet_name}': {df.columns.tolist()}")
-                    summary_data_json[sheet_name] = df.to_json(orient='records', date_format='iso', default_handler=str)
+                    if df.empty:
+                         print(f"DEBUG: Sheet '{sheet_name}' is empty after skipping footer.")
+                         summary_data_json[sheet_name] = "[]"; continue
+                    print(f"DEBUG (Post Skipfooter): Columns for sheet '{sheet_name}': {df.columns.tolist()}")
+                    print(f"DEBUG (Post Skipfooter): Data shape for sheet '{sheet_name}': {df.shape}")
+                    json_string = df.to_json(orient='records', date_format='iso', default_handler=str)
+                    summary_data_json[sheet_name] = json_string
+                    if sheet_name == 'Datacenter Summary Combined':
+                        print(f"DEBUG: JSON String for DC Summary (first 500 chars):\n{json_string[:500]}...\n")
                 else:
-                    summary_data_json[sheet_name] = "[]"; print(f"DEBUG: Sheet '{sheet_name}' not found.")
-        except ValueError as ve: print(f"Results Warn: Missing sheets: {ve}"); flash("Warn: Some summaries missing.", "warning");
-        except Exception as e: print(f"Results Error: Reading Excel: {e}"); traceback.print_exc(); flash("Error reading results.", "error");
-        finally: # Ensure dict has keys even if reading failed partially
-            for sheet_name in expected_sheets:
-                 if sheet_name not in summary_data_json: summary_data_json[sheet_name] = "[]"
+                    summary_data_json[sheet_name] = "[]"
+                    print(f"DEBUG: Sheet '{sheet_name}' not found, sending empty data.")
 
+        except ValueError as ve:
+            print(f"Results Warning: Error reading sheets from '{analyzed_filepath}': {ve}")
+            flash(f"Warning: Could not read all summary sheets from '{html.escape(analyzed_filename)}'.", "warning")
+            for sheet_name in expected_sheets:
+                if sheet_name not in summary_data_json: summary_data_json[sheet_name] = "[]"
+        except Exception as e:
+            print(f"Results Error: Reading/converting Excel '{analyzed_filepath}': {e}")
+            traceback.print_exc()
+            flash("An error occurred reading the analysis results.", "error")
+            for sheet_name in expected_sheets: summary_data_json[sheet_name] = "[]"
+
+    # Render the results template
+    # Pass safe names directly; Jinja will escape them during HTML rendering
     return render_template('results.html',
-                           client_name=safe_client_name, project_name=safe_project_name,
-                           analyzed_filename=analyzed_filename, summary_data_json=summary_data_json)
+                           client_name=safe_client_name,
+                           project_name=safe_project_name,
+                           analyzed_filename=analyzed_filename, # Pass original for display consistency? Or safe? Let's use original.
+                           summary_data_json=summary_data_json)
 
 
 @app.route('/browse')
