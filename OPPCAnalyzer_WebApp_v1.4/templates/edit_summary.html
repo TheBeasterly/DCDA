@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Summary - {{ client_name }}/{{ project_name }} - DCDA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator_bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; padding-top: 20px; padding-bottom: 40px; line-height: 1.5;}
+        .container { max-width: 95%; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; font-size: 1.8em; word-break: break-word; }
+        .breadcrumbs { margin-bottom: 25px; font-size: 0.9em; color: #6c757d; }
+        .breadcrumbs a { color: #007bff; text-decoration: none; }
+        .breadcrumbs a:hover { text-decoration: underline; }
+        #edit-summary-table { margin-top: 20px; /* Add some space above table */ }
+        .table-actions { margin-top: 25px; text-align: right; } /* Align buttons right */
+        .status-message { margin-top: 15px; font-weight: bold; }
+        .status-saving { color: #0d6efd; } /* Blue */
+        .status-success { color: #198754; } /* Green */
+        .status-error { color: #dc3545; } /* Red */
+        /* Ensure Tabulator tooltips are visible */
+        .tabulator-tooltip { z-index: 10000 !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumbs">
+            <a href="{{ url_for('index') }}">Home</a> &gt;
+            <a href="{{ url_for('browse_existing') }}">Browse</a> &gt;
+            <a href="{{ url_for('view_results', client_name=client_name, project_name=project_name, analyzed_filename=analyzed_filename) }}">{{ client_name }}/{{ project_name }} Results</a> &gt;
+            Edit Summary
+        </div>
+
+        <h1>Edit vSummary Data</h1>
+        <p>
+            <strong>Client:</strong> {{ client_name }}<br>
+            <strong>Project:</strong> {{ project_name }}<br>
+            <strong>File:</strong> {{ analyzed_filename }}
+        </p>
+        <p><em>Edit the <strong>Workload</strong> and <strong>Environment</strong> columns below. Click "Save Changes" to update the analysis file.</em></p>
+
+        <div id="edit-summary-table"></div>
+
+        <div id="status-message" class="status-message" role="alert"></div>
+
+        <div class="table-actions">
+            <button id="save-button" class="btn btn-primary">Save Changes</button>
+            <button id="cancel-button" class="btn btn-secondary">Cancel</button>
+        </div>
+
+    </div>
+
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+    <script>
+        // Get data passed from Flask (decode JSON string)
+        const jsonData = {{ vsummary_data_json | safe }}; // JSON is already safe string
+        const filename = "{{ analyzed_filename }}"; // Get filename for update URL
+        const clientName = "{{ client_name }}";
+        const projectName = "{{ project_name }}";
+
+        // Define valid options for dropdowns
+        const workloadOptions = [
+            "Standard", "File", "SQL", "Oracle", "Postgres", "Exchange", "General DB", "Multi-Error"
+        ];
+        const environmentOptions = ["Prod", "Test/Dev"];
+
+        // Define which columns to show and configure editors
+        const tableColumns = [
+            { title: "VM Name", field: "VM", width: 250, frozen: true, headerFilter: "input", tooltip: true },
+            {
+                title: "Workload", field: "Workload", width: 150, headerFilter: "select", headerFilterParams: { values: ["", ...workloadOptions] },
+                editor: "select", editorParams: { values: workloadOptions }, tooltip: "Select the primary workload category"
+            },
+            {
+                title: "Environment", field: "Environment", width: 130, headerFilter: "select", headerFilterParams: { values: ["", ...environmentOptions] },
+                editor: "select", editorParams: { values: environmentOptions }, tooltip: "Select Prod or Test/Dev"
+            },
+             { title: "Powerstate", field: "Powerstate", width: 120, headerFilter: "input", tooltip: true },
+             { title: "CPU", field: "CPUs", width: 70, hozAlign:"right", headerFilter: "input", tooltip: true },
+             { title: "Memory (GB)", field: "Memory", width: 100, hozAlign:"right", headerFilter: "input", tooltip: (cell) => `Value in MB: ${cell.getValue()}` },
+             { title: "Consumed (GB)", field: "Consumed GB", width: 140, hozAlign:"right", headerFilter: "input", tooltip: true }, // Use actual column name
+             { title: "Datacenter", field: "Datacenter", width: 150, headerFilter: "input", tooltip: true },
+             { title: "Cluster", field: "Cluster", width: 150, headerFilter: "input", tooltip: true },
+             { title: "OS (Tools)", field: "OS according to the VMware Tools", width: 250, headerFilter: "input", tooltip: true }, // Use actual column name
+        ];
+
+        // Initialize Tabulator
+        const table = new Tabulator("#edit-summary-table", {
+            data: jsonData, layout: "fitDataStretch", columns: tableColumns, height: "60vh",
+            pagination: "local", paginationSize: 50, paginationSizeSelector: [25, 50, 100, 250, 500, true],
+            movableColumns: true, resizableRows: false, placeholder:"No Data Available", tooltipsHeader:true,
+        });
+
+        // --- Button Event Listeners ---
+        const saveButton = document.getElementById("save-button");
+        const cancelButton = document.getElementById("cancel-button");
+        const statusMessage = document.getElementById("status-message");
+
+        // Save Button Click Handler
+        saveButton.addEventListener("click", function() {
+            statusMessage.textContent = "Saving data...";
+            statusMessage.className = "status-message status-saving";
+            saveButton.disabled = true;
+            cancelButton.disabled = true;
+
+            const editedData = table.getData();
+            const updateUrl = `/update/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(filename)}`;
+
+            fetch(updateUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(editedData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => { throw new Error(errData.message || `HTTP error ${response.status}`); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    statusMessage.textContent = "Save successful! Redirecting back to results...";
+                    statusMessage.className = "status-message status-success";
+                    setTimeout(() => {
+                        window.location.href = `/results/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(filename)}`;
+                    }, 1500);
+                } else {
+                    throw new Error(data.message || "Save operation failed on the server.");
+                }
+            })
+            .catch(error => {
+                console.error('Save Error:', error);
+                statusMessage.textContent = `Save failed: ${error.message}`;
+                statusMessage.className = "status-message status-error";
+                saveButton.disabled = false;
+                cancelButton.disabled = false;
+            });
+        });
+
+        // Cancel Button Click Handler
+        cancelButton.addEventListener("click", function() {
+            if (confirm("Are you sure you want to cancel? Any changes will be lost.")) {
+                 window.location.href = `/results/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(filename)}`;
+            }
+        });
+
+    </script>
+
+</body>
+</html>

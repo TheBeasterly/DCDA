@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analysis Results - {{ client_name }}/{{ project_name }} - DCDA</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
-    <link href="https://cdn.datatables.net/1.13.11/css/dataTables.bootstrap5.min.css" rel="stylesheet"> <style>
+    <link href="https://cdn.datatables.net/1.13.11/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
         /* Styles */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; padding-top: 20px; padding-bottom: 40px; line-height: 1.5;}
         .container { max-width: 95%; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -17,13 +18,16 @@
         .table-container { margin-bottom: 40px; }
         .table { width: 100% !important; margin-bottom: 1rem; color: #212529; }
         .table th, .table td { padding: 0.6rem; border-top: 1px solid #dee2e6; }
+        /* Align text left, vertically middle (Default) */
         .table th, .table td { text-align: left; vertical-align: middle; }
+        /* Right align text in cells with this class (used by DataTables) */
+        .table td.dt-body-right, .table th.dt-body-right { text-align: right; }
         .table thead th { border-bottom: 2px solid #dee2e6; font-weight: 600;}
         .table-sm th, .table-sm td { padding: 0.4rem; }
         .table tfoot tr th, .table tfoot tr td { font-weight: bold; background-color: #f1f3f5; border-top: 2px solid #dee2e6; }
         /* DataTables Controls Styling */
         div.dataTables_wrapper div.dataTables_length { float: left; margin-bottom: 0.5em;}
-        div.dataTables_wrapper div.dataTables_filter { text-align: right; margin-bottom: 0.5em;} /* Ensure search is visible */
+        div.dataTables_wrapper div.dataTables_filter { text-align: right; margin-bottom: 0.5em;}
         div.dataTables_wrapper div.dataTables_filter input { margin-left: 0.5em; display: inline-block; width: auto; border-radius: 3px; padding: 0.3rem 0.6rem; border: 1px solid #ced4da; }
         div.dataTables_wrapper div.dataTables_info { clear: both; padding-top: 0.85em; font-size: 0.9em; }
         div.dataTables_wrapper div.dataTables_paginate { padding-top: 0.5em; }
@@ -31,6 +35,8 @@
         .error-message { color: #dc3545; font-style: normal; font-weight: bold;}
         .nav-link { display: inline-block; margin-top: 30px; color: #007bff; text-decoration: none; padding: 8px 0; border-bottom: 1px solid transparent; font-size: 0.9em; }
         .nav-link:hover { border-bottom-color: #007bff; }
+        .action-links { margin-top: 20px; margin-bottom: 20px; }
+        .action-links a { margin-right: 20px; }
     </style>
 </head>
 <body>
@@ -49,15 +55,27 @@
             <strong>Source File:</strong> {{ analyzed_filename }}
         </p>
 
+        <div class="action-links">
+             <a href="{{ url_for('download_file_relpath', filepath=client_name + '/' + project_name + '/Analyzed/' + analyzed_filename) }}" class="btn btn-success btn-sm">Download Analyzed Excel</a>
+             <a href="{{ url_for('edit_summary', client=client_name, project=project_name, filename=analyzed_filename) }}" class="btn btn-secondary btn-sm">Edit Summary Data</a>
+        </div>
+
+
         <div class="table-container">
             <h2>Overall Summary Totals</h2>
             <table id="overallTotalsTable" class="table table-sm table-striped table-hover" style="width:100%">
                 <thead>
-                    <tr><th>Workload</th><th>Environment</th><th>VM Count</th><th>Total Disks</th><th>Total Consumed GB</th></tr>
+                    <tr>
+                        <th>Workload</th>
+                        <th>Environment</th>
+                        <th class="dt-body-right">VM Count</th> <th class="dt-body-right">Total Disks</th> <th class="dt-body-right">Total Consumed GB</th> </tr>
                 </thead>
                 <tbody></tbody>
                 <tfoot>
-                    <tr><th>Totals:</th><th></th><th></th><th></th><th></th></tr>
+                    <tr>
+                        <th>Totals:</th>
+                        <th></th>
+                        <th class="dt-body-right"></th> <th class="dt-body-right"></th> <th class="dt-body-right"></th> </tr>
                 </tfoot>
             </table>
         </div>
@@ -66,11 +84,19 @@
             <h2>Overall Powerstate Counts</h2>
              <table id="overallPowerTable" class="table table-sm table-striped table-hover" style="width:100%">
                 <thead>
-                    <tr><th>Workload</th><th>Environment</th><th>Powerstate</th><th>VM Count</th></tr>
+                    <tr>
+                        <th>Workload</th>
+                        <th>Environment</th>
+                        <th>Powerstate</th>
+                        <th class="dt-body-right">VM Count</th> </tr>
                 </thead>
                 <tbody></tbody>
                  <tfoot>
-                     <tr><th>Totals:</th><th></th><th></th><th></th></tr>
+                     <tr>
+                         <th>Totals:</th>
+                         <th></th>
+                         <th></th>
+                         <th class="dt-body-right"></th> </tr>
                 </tfoot>
             </table>
         </div>
@@ -78,9 +104,23 @@
         <div class="table-container">
             <h2>Datacenter Summary (Totals & Powered On)</h2>
              <table id="dcSummaryTable" class="table table-sm table-striped table-hover" style="width:100%">
-                <thead><tr><th>Datacenter</th><th>Cluster</th><th>Workload</th><th>Environment</th><th>VM Count</th><th>Total Disks</th><th>Total Consumed GB</th><th>PoweredOn VMs</th><th>PoweredOn Disks</th><th>PoweredOn Consumed GB</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Datacenter</th>
+                        <th>Cluster</th>
+                        <th>Workload</th>
+                        <th>Environment</th>
+                        <th class="dt-body-right">VM Count</th> <th class="dt-body-right">Total Disks</th> <th class="dt-body-right">Total Consumed GB</th> <th class="dt-body-right">PoweredOn VMs</th> <th class="dt-body-right">PoweredOn Disks</th> <th class="dt-body-right">PoweredOn Consumed GB</th> </tr>
+                </thead>
                 <tbody></tbody>
-                 <tfoot><tr><th>Totals:</th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th></tr></tfoot>
+                 <tfoot>
+                     <tr>
+                         <th>Totals:</th>
+                         <th></th>
+                         <th></th>
+                         <th></th>
+                         <th class="dt-body-right"></th> <th class="dt-body-right"></th> <th class="dt-body-right"></th> <th class="dt-body-right"></th> <th class="dt-body-right"></th> <th class="dt-body-right"></th> </tr>
+                </tfoot>
             </table>
         </div>
 
@@ -102,67 +142,80 @@
         const summaryDataJson = {{ summary_data_json | tojson | safe }};
         const summaryData = {};
         for (const key in summaryDataJson) {
-            try { summaryData[key] = JSON.parse(summaryDataJson[key]); }
+            try {
+                const parsed = JSON.parse(summaryDataJson[key]);
+                summaryData[key] = Array.isArray(parsed) ? parsed : [];
+            }
             catch (e) { console.error(`Error parsing JSON for ${key}:`, e); summaryData[key] = []; }
         }
-        // Optional: Keep data structure logs for verification if needed
-        console.log("DEBUG: Parsed Data Lengths:"); console.log(" - Overall Totals:", summaryData['Overall Summary Totals']?.length); console.log(" - Power Counts:", summaryData['Overall Powerstate Counts']?.length); console.log(" - DC Summary:", summaryData['Datacenter Summary Combined']?.length);
-
-        // --- REMOVED Global Filter State (tableFilters) ---
-        // --- REMOVED DataTable Instances storage (dtInstances) - Not needed for this version ---
+        console.log("DEBUG: Parsed Data Lengths:");
+        console.log(" - Overall Totals:", summaryData['Overall Summary Totals']?.length);
+        console.log(" - Power Counts:", summaryData['Overall Powerstate Counts']?.length);
+        console.log(" - DC Summary:", summaryData['Datacenter Summary Combined']?.length);
 
         $(document).ready(function() {
 
-            // --- REMOVED: populateExternalFilters function ---
-            // --- REMOVED: Global Custom Filter function $.fn.dataTable.ext.search.push ---
-            // --- REMOVED: Delegated Event Listener for filters ---
-
-            // --- Initialize Tables with Global Search enabled ---
+            // --- Initialize Tables ---
             if (summaryData['Overall Summary Totals'] && summaryData['Overall Summary Totals'].length > 0) {
                  $('#overallTotalsTable').DataTable({
                     data: summaryData['Overall Summary Totals'],
-                    columns: [ { data: 'Workload' }, { data: 'Environment' }, { data: 'VM Count' }, { data: 'Disks' }, { data: 'Consumed GB' } ],
-                    paging: false, info: true, // Show info like "filtered from..."
-                    searching: true, // ENABLE global search
-                    order: [[0, 'asc'], [1, 'asc']],
+                    columns: [
+                        { data: 'Workload' },
+                        { data: 'Environment' },
+                        // *** Added className for right alignment ***
+                        { data: 'VM Count', className: 'dt-body-right' },
+                        { data: 'Disks', className: 'dt-body-right' },
+                        { data: 'Consumed GB', className: 'dt-body-right' }
+                    ],
+                    paging: false, info: true, searching: true, order: [[0, 'asc'], [1, 'asc']],
                     footerCallback: function (row, data, start, end, display) {
-                        var api=this.api();var foot=$(api.table().footer());
-                        foot.find('tr th').eq(2).html(api.column(2,{search:'applied'}).data().reduce((a,b)=>parseNum(a)+parseNum(b),0).toLocaleString());
-                        foot.find('tr th').eq(3).html(api.column(3,{search:'applied'}).data().reduce((a,b)=>parseNum(a)+parseNum(b),0).toLocaleString());
-                        foot.find('tr th').eq(4).html(api.column(4,{search:'applied'}).data().reduce((a,b)=>parseNum(a)+parseNum(b),0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+                        var api = this.api(); var foot = $(api.table().footer());
+                        // Note: Footer alignment uses class on <th> already added in HTML
+                        foot.find('tr th').eq(2).html(api.column(2, { page: 'current', search: 'applied' }).data().reduce((a, b) => parseNum(a) + parseNum(b), 0).toLocaleString());
+                        foot.find('tr th').eq(3).html(api.column(3, { page: 'current', search: 'applied' }).data().reduce((a, b) => parseNum(a) + parseNum(b), 0).toLocaleString());
+                        foot.find('tr th').eq(4).html(api.column(4, { page: 'current', search: 'applied' }).data().reduce((a, b) => parseNum(a) + parseNum(b), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
                     }
-                    // No initComplete
                 });
             } else { $('#overallTotalsTable').parent().html('<h2>Overall Summary Totals</h2><p class="error-message">Data not available.</p>'); }
 
              if (summaryData['Overall Powerstate Counts'] && summaryData['Overall Powerstate Counts'].length > 0) {
                  $('#overallPowerTable').DataTable({
                     data: summaryData['Overall Powerstate Counts'],
-                    columns: [ { data: 'Workload' }, { data: 'Environment' }, { data: 'Powerstate' }, { data: 'VM Count' } ],
-                    paging: false, info: true, // Show info
-                    searching: true, // ENABLE global search
-                    order: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
+                    columns: [
+                        { data: 'Workload' }, { data: 'Environment' }, { data: 'Powerstate' },
+                        // *** Added className for right alignment ***
+                        { data: 'VM Count', className: 'dt-body-right' }
+                    ],
+                    paging: false, info: true, searching: true, order: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
                     footerCallback: function (row, data, start, end, display) {
-                        var api=this.api();var foot=$(api.table().footer());
-                        foot.find('tr th').eq(3).html(api.column(3,{search:'applied'}).data().reduce((a,b)=>parseNum(a)+parseNum(b),0).toLocaleString());
+                        var api = this.api(); var foot = $(api.table().footer());
+                        foot.find('tr th').eq(3).html(api.column(3, { page: 'current', search: 'applied' }).data().reduce((a, b) => parseNum(a) + parseNum(b), 0).toLocaleString());
                     }
-                    // No initComplete
                 });
             } else { $('#overallPowerTable').parent().html('<h2>Overall Powerstate Counts</h2><p class="error-message">Data not available.</p>'); }
 
              if (summaryData['Datacenter Summary Combined'] && summaryData['Datacenter Summary Combined'].length > 0) {
                  $('#dcSummaryTable').DataTable({
                     data: summaryData['Datacenter Summary Combined'],
-                    columns: [ { data: 'Datacenter' }, { data: 'Cluster' }, { data: 'Workload' }, { data: 'Environment' }, { data: 'VM Count' }, { data: 'Disks' }, { data: 'Consumed GB' }, { data: 'PoweredOn VMs' }, { data: 'PoweredOn Disks' }, { data: 'PoweredOn Consumed GB' } ],
-                    paging: true, pageLength: 25, // Keep paging for this table
-                    info: true,
-                    searching: true, // ENABLE global search
-                    order: [[0, 'asc'], [1, 'asc'], [2, 'asc'], [3, 'asc']],
+                    columns: [
+                        { data: 'Datacenter' }, { data: 'Cluster' }, { data: 'Workload' }, { data: 'Environment' },
+                        // *** Added className for right alignment ***
+                        { data: 'VM Count', className: 'dt-body-right' },
+                        { data: 'Disks', className: 'dt-body-right' },
+                        { data: 'Consumed GB', className: 'dt-body-right' },
+                        { data: 'PoweredOn VMs', className: 'dt-body-right' },
+                        { data: 'PoweredOn Disks', className: 'dt-body-right' },
+                        { data: 'PoweredOn Consumed GB', className: 'dt-body-right' }
+                    ],
+                    paging: true, pageLength: 25, info: true, searching: true, order: [[0, 'asc'], [1, 'asc'], [2, 'asc'], [3, 'asc']],
                     footerCallback: function (row, data, start, end, display) {
-                        var api=this.api();var foot=$(api.table().footer()); const cols=[4,5,6,7,8,9];
-                        cols.forEach(i => { const t=api.column(i,{search:'applied'}).data().reduce((a,b)=>parseNum(a)+parseNum(b),0); const f=(i===6||i===9)?t.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):t.toLocaleString(); foot.find('tr th').eq(i).html(f); });
+                        var api = this.api(); var foot = $(api.table().footer()); const cols = [4, 5, 6, 7, 8, 9];
+                        cols.forEach(i => {
+                            const total = api.column(i, { page: 'current', search: 'applied' }).data().reduce((a, b) => parseNum(a) + parseNum(b), 0);
+                            const formattedTotal = (i === 6 || i === 9) ? total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : total.toLocaleString();
+                            foot.find('tr th').eq(i).html(formattedTotal);
+                        });
                     }
-                    // No initComplete
                 });
             } else { $('#dcSummaryTable').parent().html('<h2>Datacenter Summary (Totals & Powered On)</h2><p class="error-message">Data not available.</p>'); }
 

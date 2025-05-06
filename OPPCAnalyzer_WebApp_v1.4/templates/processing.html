@@ -3,248 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Processing RVTools File</title> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <title>Processing RVTools File - DCDA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            line-height: 1.6;
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background-color: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            max-width: 800px;
-            margin: 30px auto;
-        }
-        h1, h2, h3 {
-            color: #333;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-        h1 { font-size: 1.6em; }
-        h2 { font-size: 1.3em; margin-top: 25px; }
-        h3 { font-size: 1.1em; border-bottom: none; margin-bottom: 5px;}
-
-        #task-info {
-             background-color: #e9ecef;
-             padding: 10px 15px;
-             border-radius: 4px;
-             margin-bottom: 20px;
-             font-size: 0.9em;
-             border: 1px solid #ced4da;
-        }
-         #task-info strong { color: #495057; }
-
+        /* Basic styles - adjust as needed */
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         #progress-log {
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
-            padding: 15px;
-            height: 300px; /* Adjust as needed */
-            overflow-y: scroll; /* Enable scrolling */
-            margin-bottom: 15px;
-            border-radius: 3px;
-            font-size: 0.9em;
-            white-space: pre-wrap; /* Keep formatting, but wrap lines */
-            line-height: 1.4;
-        }
-        #progress-log p {
-            margin: 0 0 4px 0; /* Spacing between messages */
-            padding: 0;
-            word-wrap: break-word;
-        }
-        #result {
-            margin-top: 20px;
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+            word-wrap: break-word; /* Break long words */
+            max-height: 400px;
+            overflow-y: auto; /* Enable vertical scroll */
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
             padding: 15px;
             border-radius: 4px;
-            border: 1px solid transparent;
-        }
-        #result.success {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-        }
-        #result.error {
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-        }
-        #result a {
-            color: #0056b3;
-            font-weight: 600;
-            text-decoration: none;
-        }
-         #result a:hover {
-             text-decoration: underline;
-         }
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .nav-link {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 8px 15px;
-            background-color: #6c757d;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
+            margin-top: 15px;
+            font-family: monospace; /* Use monospace font for logs */
             font-size: 0.9em;
         }
-        .nav-link:hover {
-             background-color: #5a6268;
-        }
+        .status { margin-top: 20px; font-weight: bold; }
+        .status-processing { color: #0d6efd; }
+        .status-success { color: #198754; }
+        .status-error { color: #dc3545; }
+        .spinner-border { vertical-align: middle; margin-left: 10px; }
+        .results-link { display: none; margin-top: 15px;} /* Hide link initially */
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Processing File <span id="spinner" class="spinner"></span></h1>
-        <div id="task-info">
-            <strong>File:</strong> {{ display_filename }}<br>
+        <h1>Processing File</h1>
+        <p>
             <strong>Client:</strong> {{ client_name }}<br>
-            <strong>Project:</strong> {{ project_name }}
-        </div>
-
-        <h2>Progress Log:</h2>
-        <div id="progress-log">
-            <p>Connecting to analysis stream...</p>
-        </div>
-
-        <div id="result">
-            </div>
-         <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home</a>
+            <strong>Project:</strong> {{ project_name }}<br>
+            <strong>File:</strong> {{ display_filename }}
+        </p>
+        <p class="status status-processing">
+            Processing in progress...
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        </p>
+        <div id="progress-log">Starting process...</div>
+        <a id="results-link" href="#" class="btn btn-success results-link">View Results</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-top: 15px;">Back to Home</a>
     </div>
 
     <script>
-        // Get the unique task ID passed from Flask/Jinja
-        const taskId = {{ task_id | tojson }};
-        // Construct the stream URL using task_id
-        const streamUrl = `/stream/${taskId}`;
-
+        const taskId = "{{ task_id }}";
         const progressLog = document.getElementById('progress-log');
-        const resultDiv = document.getElementById('result');
-        const spinner = document.getElementById('spinner');
+        const statusElement = document.querySelector('.status');
+        const resultsLink = document.getElementById('results-link');
 
-        // Function to safely add messages to the log and scroll down
+        // Function to append messages to the log
         function logMessage(message) {
-            const p = document.createElement('p');
-            p.textContent = message; // Use textContent for safety
-            progressLog.appendChild(p);
-            progressLog.scrollTop = progressLog.scrollHeight; // Auto-scroll
+            progressLog.textContent += '\n' + message;
+            // Auto-scroll to the bottom
+            progressLog.scrollTop = progressLog.scrollHeight;
         }
 
-        // Helper function to escape HTML special characters for safe display
-        function escapeHTML(str) {
-             if (typeof str !== 'string') return ''; // Handle non-string input
-             const div = document.createElement('div');
-             div.appendChild(document.createTextNode(str));
-             return div.innerHTML;
-        }
+        // --- Initialize EventSource ---
+        logMessage("Connecting to processing stream...");
+        const eventSource = new EventSource(`/stream/${taskId}`);
 
-
-        logMessage(`Establishing connection to ${streamUrl}...`);
-
-        // Create the EventSource connection
-        const eventSource = new EventSource(streamUrl);
-
-        // --- Event Listener for standard 'message' events ---
+        // --- Handle incoming messages ---
         eventSource.onmessage = function(event) {
-            // event.data contains the progress message string
-            logMessage(event.data);
+            logMessage(event.data); // Display raw progress message
         };
 
-        // --- Event Listener for the custom 'result' event ---
+        // --- Handle custom 'result' event ---
         eventSource.addEventListener('result', function(event) {
-            logMessage("Received final result. Closing connection.");
-            spinner.style.display = 'none'; // Hide spinner
-            eventSource.close(); // Close the SSE connection
-
+            console.log("Result event received:", event.data);
+            let resultData;
             try {
-                // Parse the JSON payload from the event
-                const resultData = JSON.parse(event.data);
-
-                // --- Handle SUCCESS case ---
-                if (resultData.success) {
-                    // Extract the expected data fields
-                    const downloadPath = resultData.download_path;
-                    const clientName = resultData.client_name;
-                    const projectName = resultData.project_name;
-                    const analyzedFilename = resultData.analyzed_filename;
-
-                    // Validate received data (basic check)
-                    if (!downloadPath || !clientName || !projectName || !analyzedFilename) {
-                        throw new Error("Incomplete success data received from server.");
-                    }
-
-                    // 1. Create Download Link HTML (Should be correct)
-                    const downloadUrl = `/download/${encodeURIComponent(downloadPath)}`;
-                    const downloadLinkHtml = `<a href="${downloadUrl}" download class="btn btn-success btn-sm">Download Analyzed File</a>`;
-
-                    // 2. Create View Results Link HTML (Ensure this is correct)
-                    // Use template literal with proper ${...} syntax
-                    const resultsUrl = `/results/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(analyzedFilename)}`;
-                    // Create the HTML string for the link
-                    const resultsLinkHtml = `<a href="${resultsUrl}" class="btn btn-info btn-sm" style="margin-left: 10px;">View Results</a>`;
-
-                    // 3. Update Result Div using standard concatenation
-                    resultDiv.innerHTML = '<h3>Success!</h3> Analysis complete.<br>' + downloadLinkHtml + resultsLinkHtml;
-                    resultDiv.className = 'success'; // Apply success styling
-
-                }
-                // --- Handle FAILURE case ---
-                else {
-                    // Display error message from the server payload
-                    resultDiv.innerHTML = `<h3>Error</h3> ${escapeHTML(resultData.message || 'An unknown error occurred during analysis.')}`;
-                    resultDiv.className = 'error'; // Apply error styling
-                }
+                resultData = JSON.parse(event.data);
             } catch (e) {
-                // Catch errors during JSON parsing or processing the result data
-                resultDiv.innerHTML = `<h3>Error</h3> Failed to process final result message from server. ${escapeHTML(e.toString())}`;
-                resultDiv.className = 'error';
-                console.error("Error processing result event data:", event.data, e);
+                logMessage("Error: Could not parse final result data.");
+                statusElement.textContent = "Error: Invalid result data received from server.";
+                statusElement.className = "status status-error";
+                eventSource.close(); // Close connection on error
+                return;
             }
+
+            // Stop the spinner
+            const spinner = statusElement.querySelector('.spinner-border');
+            if (spinner) spinner.remove();
+
+            if (resultData.success) {
+                logMessage("Processing complete!");
+                statusElement.textContent = "Processing Successful!";
+                statusElement.className = "status status-success";
+
+                // *** Build URL on Client-Side ***
+                if (resultData.client_name && resultData.project_name && resultData.analyzed_filename) {
+                    // Construct the URL using encodeURIComponent for safety
+                    const resultsUrl = `/results/${encodeURIComponent(resultData.client_name)}/${encodeURIComponent(resultData.project_name)}/${encodeURIComponent(resultData.analyzed_filename)}`;
+                    resultsLink.href = resultsUrl;
+                    resultsLink.style.display = 'inline-block'; // Show the button
+                    logMessage(`Results available.`); // Keep log message simple
+                    // Optional: Automatically redirect after a delay
+                    // setTimeout(() => { window.location.href = resultsUrl; }, 3000);
+                } else {
+                    logMessage("Warning: Result data missing information needed to build results link.");
+                    statusElement.textContent = "Processing Successful (but cannot link to results).";
+                }
+
+            } else {
+                logMessage(`Error: ${resultData.message || 'Unknown processing error.'}`);
+                statusElement.textContent = `Processing Failed: ${resultData.message || 'Unknown error.'}`;
+                statusElement.className = "status status-error";
+            }
+
+            // Close the connection once the result is received
+            eventSource.close();
+            logMessage("Connection closed.");
         });
 
-        // --- Event Listener for SSE errors --- (Keep as is)
-        eventSource.onerror = function(event) {
-            // ... error handling logic ...
-             logMessage('Error connecting to stream or stream interrupted.'); console.error("EventSource failed:", event); spinner.style.display = 'none';
-             if (eventSource.readyState === EventSource.CLOSED) { logMessage('Connection closed.'); if (!resultDiv.innerHTML) { resultDiv.innerHTML = 'Connection closed.'; resultDiv.className = 'error'; } }
-             else { resultDiv.innerHTML = '<strong>Error:</strong> Connection failed.'; resultDiv.className = 'error'; }
-             eventSource.close();
-        };
-
-        // --- Event Listener for SSE errors --- (Remains the same)
-        eventSource.onerror = function(event) {
-            logMessage('Error connecting to stream or stream interrupted.');
-            console.error("EventSource failed:", event);
-            spinner.style.display = 'none';
-
-            if (eventSource.readyState === EventSource.CLOSED) {
-                 logMessage('Connection closed.');
-                 if (!resultDiv.innerHTML) { // Only show generic error if no result/error already displayed
-                    resultDiv.innerHTML = 'Connection to server closed or task finished.';
-                    resultDiv.className = 'error';
-                 }
-            } else {
-                 resultDiv.innerHTML = '<strong>Error:</strong> Connection to the server failed.';
-                 resultDiv.className = 'error';
+        // --- Handle errors ---
+        eventSource.onerror = function(err) {
+            logMessage("Stream connection error or closed.");
+            // Don't overwrite final status if already set
+            if (!statusElement.classList.contains('status-success') && !statusElement.classList.contains('status-error')) {
+                 statusElement.textContent = "Connection closed or error.";
+                 statusElement.className = "status status-error"; // Show error color
+                 const spinner = statusElement.querySelector('.spinner-border');
+                 if (spinner) spinner.remove();
             }
-            eventSource.close(); // Ensure connection is closed
+            console.error("EventSource failed:", err);
+            eventSource.close(); // Ensure closed on error
         };
 
     </script>
