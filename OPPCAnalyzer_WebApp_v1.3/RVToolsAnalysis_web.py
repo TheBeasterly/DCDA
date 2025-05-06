@@ -462,13 +462,52 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
             df_summary_source['Workload'] = df_summary_source.apply(assign_workload_category, axis=1)
             df_summary_source['Environment'] = df_summary_source.apply(assign_environment, axis=1)
 
-            # Position new columns before 'IsFile'
+            # --- Reorder Columns ---
+            yield sse_message(" -> Reordering columns in vSummary..."); time.sleep(0.1)
             try:
-                 isfile_idx = df_summary_source.columns.get_loc('IsFile'); cols = df_summary_source.columns.tolist()
-                 if 'Workload' in cols: cols.remove('Workload'); cols.insert(isfile_idx, 'Workload')
-                 if 'Environment' in cols: cols.remove('Environment'); cols.insert(isfile_idx + 1, 'Environment')
-                 df_summary_source = df_summary_source[cols]
-            except KeyError: yield sse_message(" -> Warn: Cannot position category columns.")
+                cols = df_summary_source.columns.tolist()
+                # Define columns to move and their target positions
+                cols_to_move = {
+                    'Workload': 'IsFile', # Target: before IsFile
+                    'Environment': 'IsFile', # Target: before IsFile
+                    'VM Count': 'Disks' # Target: after Disks
+                }
+                # Remove them first to avoid index issues during insertion
+                present_cols_to_move = [c for c in cols_to_move if c in cols]
+                for col in present_cols_to_move:
+                    cols.remove(col)
+
+                # Insert Workload & Environment before IsFile
+                if 'IsFile' in cols:
+                    isfile_index = cols.index('IsFile')
+                    if 'Environment' in present_cols_to_move:
+                        cols.insert(isfile_index, 'Environment')
+                    if 'Workload' in present_cols_to_move:
+                        cols.insert(isfile_index, 'Workload') # Insert Workload before Env if both moved
+                else: # Fallback: add to start if IsFile is missing
+                    if 'Environment' in present_cols_to_move: cols.insert(0, 'Environment')
+                    if 'Workload' in present_cols_to_move: cols.insert(0, 'Workload')
+                    print("SERVER WARNING: 'IsFile' column not found for positioning Workload/Environment.")
+
+                # Insert VM Count after Disks
+                if 'Disks' in cols and 'VM Count' in present_cols_to_move:
+                    disks_index = cols.index('Disks')
+                    cols.insert(disks_index + 1, 'VM Count')
+                elif 'VM Count' in present_cols_to_move: # Fallback: append if Disks missing
+                    cols.append('VM Count')
+                    print("SERVER WARNING: 'Disks' column not found for positioning VM Count.")
+
+                # Apply the new column order
+                df_summary_source = df_summary_source[cols]
+                yield sse_message(" -> Columns reordered."); time.sleep(0.1)
+
+            except (KeyError, ValueError) as e:
+                # Catch potential errors if target columns like 'IsFile' or 'Disks' are missing
+                print(f"SERVER WARNING: Could not reorder all columns due to missing target column: {e}")
+                yield sse_message(" -> Warning: Could not fully reorder columns."); time.sleep(0.1)
+                # DataFrame will proceed with Workload/Env/VMCount potentially at the end
+
+            # --- End Reorder ---
 
             # Filter for PoweredOn VMs
             df_powered_on = df_summary_source[df_summary_source['Powerstate'] == 'poweredOn'].copy()
