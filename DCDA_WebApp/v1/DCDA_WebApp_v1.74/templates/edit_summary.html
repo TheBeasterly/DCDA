@@ -59,16 +59,14 @@
         const environmentOptions = ["Prod", "Test/Dev"];
 
         const tableColumns = [
-            { title: "VM Name", field: "VM", width: 250, frozen: true, headerFilter: "input", tooltip: true },
-            { title: "Workload", field: "Workload", width: 150, headerFilter: "select", headerFilterParams: { values: ["", ...workloadOptions] }, editor: "select", editorParams: { values: workloadOptions }, tooltip: "Select the primary workload category" },
-            { title: "Environment", field: "Environment", width: 130, headerFilter: "select", headerFilterParams: { values: ["", ...environmentOptions] }, editor: "select", editorParams: { values: environmentOptions }, tooltip: "Select Prod or Test/Dev" },
-            { title: "Powerstate", field: "Powerstate", width: 120, headerFilter: "input", tooltip: true },
-            { title: "CPU", field: "CPUs", width: 70, hozAlign:"right", headerFilter: "input", tooltip: true },
-            { title: "Memory (GB)", field: "Memory", width: 100, hozAlign:"right", headerFilter: "input", tooltip: (cell) => `Value in MB: ${cell.getValue()}` },
-            { title: "Consumed (GB)", field: "Consumed GB", width: 140, hozAlign:"right", headerFilter: "input", tooltip: true },
-            { title: "Datacenter", field: "Datacenter", width: 150, headerFilter: "input", tooltip: true },
-            { title: "Cluster", field: "Cluster", width: 150, headerFilter: "input", tooltip: true },
-            { title: "OS (Tools)", field: "OS according to the VMware Tools", width: 250, headerFilter: "input", tooltip: true },
+            { title: "VM Name", field: "VM", width: 500, frozen: true, headerFilter: "input", tooltip: true },
+            { title: "Workload", field: "Workload", width: 180, headerFilter: "select", headerFilterParams: { values: ["", ...workloadOptions] }, editor: "select", editorParams: { values: workloadOptions }, tooltip: "Select the primary workload category" },
+            { title: "Environment", field: "Environment", width: 160, headerFilter: "select", headerFilterParams: { values: ["", ...environmentOptions] }, editor: "select", editorParams: { values: environmentOptions }, tooltip: "Select Prod or Test/Dev" },
+            { title: "Powerstate", field: "Powerstate", width: 150, headerFilter: "input", tooltip: true },
+            { title: "Consumed (GB)", field: "Consumed GB", width: 170, hozAlign:"right", headerFilter: "input", tooltip: true },
+            { title: "Datacenter", field: "Datacenter", width: 315, headerFilter: "input", tooltip: true },
+            { title: "Cluster", field: "Cluster", width: 325, headerFilter: "input", tooltip: true },
+            { title: "OS (Tools)", field: "OS according to the VMware Tools", width: 500, headerFilter: "input", tooltip: true },
         ];
 
         const table = new Tabulator("#edit-summary-table", {
