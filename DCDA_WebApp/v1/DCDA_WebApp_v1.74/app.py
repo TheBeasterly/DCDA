@@ -310,7 +310,7 @@ def format_timestamp(ts):
     if ts is None:
         return None
     try:
-        return datetime.fromtimestamp(ts).strftime('%d-%m-%Y %I:%M:%S %p')
+        return datetime.fromtimestamp(ts).strftime('%m-%d-%Y %I:%M:%S %p')
     except Exception:
         return "N/A"
     

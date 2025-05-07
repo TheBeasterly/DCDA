@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysis Results - {{ client_name }}/{{ project_name }} - DCDA</title>
+    <title>DCDA - Analysis Results - {{ client_name }}/{{ project_name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.11/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <style>
+        <style>
         /* Your existing styles */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; padding-top: 20px; padding-bottom: 40px; line-height: 1.5;}
         .container { max-width: 95%; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -28,15 +28,21 @@
 </head>
 <body>
     <div class="container">
-        <div class="breadcrumbs">
-            <a href="{{ url_for('index') }}">Home</a> &gt;
-            <a href="{{ url_for('browse_existing') }}">Browse</a> &gt;
-            {{ client_name }} &gt;
-            {{ project_name }} &gt;
-            Results for {{ displayed_filename }}
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="breadcrumbs">
+                <a href="{{ url_for('index') }}">Home</a> &gt;
+                <a href="{{ url_for('browse_existing') }}">Browse</a> &gt;
+                {{ client_name }} &gt;
+                {{ project_name }} &gt;
+                Results for {{ displayed_filename }}
+            </div>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm mb-3">&larr; DCDA Home</a>
         </div>
-        <h1>Analysis Results</h1>
-        <div class="file-info">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Analysis Results</h1>
+            <a href="{{ url_for('browse_existing') }}" class="btn btn-outline-secondary btn-sm mb-3">&larr; Browse Projects</a>
+        </div>
+            <div class="file-info">
             <p><strong>Client:</strong> {{ client_name }}</p>
             <p><strong>Project:</strong> {{ project_name }}</p>
             <p><strong>Displaying File:</strong> {{ displayed_filename }}
@@ -56,19 +62,19 @@
                 {# Currently viewing EDITED version #}
                 {% if edited_version_filename_for_actions %}
                     <a href="{{ url_for('download_file_relpath', filepath=client_name + '/' + project_name + '/Analyzed/' + edited_version_filename_for_actions) }}" class="btn btn-info btn-sm">
-                        Download This Edited Version
+                        Download Edited Version
                     </a>
                 {% endif %}
                 {% if analyzed_version_filename_for_actions %}
                     <a href="{{ url_for('view_results', client_name=client_name, project_name=project_name, filename_in_url=analyzed_version_filename_for_actions) }}" class="btn btn-outline-secondary btn-sm">
-                        View Original Analyzed Version
+                        View Analyzed Version
                     </a>
                 {% endif %}
             {% else %}
                 {# Currently viewing ANALYZED version (or a base file) #}
                 {% if analyzed_version_filename_for_actions %}
                     <a href="{{ url_for('download_file_relpath', filepath=client_name + '/' + project_name + '/Analyzed/' + analyzed_version_filename_for_actions) }}" class="btn btn-success btn-sm">
-                        Download This Analyzed Version
+                        Download Analyzed Version
                     </a>
                 {% endif %}
                 {% if edited_version_filename_for_actions %}
@@ -119,10 +125,6 @@
                  <tfoot><tr><th>Totals:</th><th></th><th></th><th></th><th class="dt-foot-right"></th><th class="dt-foot-right"></th><th class="dt-foot-right"></th><th class="dt-foot-right"></th><th class="dt-foot-right"></th><th class="dt-foot-right"></th></tr></tfoot>
             </table>
         </div>
-
-        <a href="{{ url_for('browse_existing') }}" class="nav-link" style="margin-right: 15px;">&larr; Browse Projects</a>
-        <a href="{{ url_for('index') }}" class="nav-link">&larr; DCDA Home</a>
-
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>

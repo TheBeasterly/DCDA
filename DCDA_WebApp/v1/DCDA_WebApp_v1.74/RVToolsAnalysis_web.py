@@ -659,7 +659,7 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
         yield sse_message(f"Output file will be: {output_filename}"); logging.info(f"Output file path: {output_filepath}"); time.sleep(0.1)
 
         # --- Steps 1-8: Initial Data Prep (Openpyxl - using original helpers) ---
-        yield sse_message("Step 1-8: Running Openpyxl Pre-processing..."); time.sleep(0.1)
+        yield sse_message("Step 1-8: Running Pre-processing..."); time.sleep(0.1)
         intermediate_filepath = output_filepath + ".prep.xlsx" # Use intermediate file
         try:
             logging.info(f"Loading workbook: {input_filepath}")
@@ -705,7 +705,7 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
             if vdisk_ws: vdisk_insert_gb_cols(vdisk_ws)
             if vpart_ws: vpart_insert_gb_cols(vpart_ws)
 
-            logging.info(f"Saving intermediate prepped file to: {intermediate_filepath}")
+            logging.info(f"Saving intermediate file to: {intermediate_filepath}")
             destfile.save(intermediate_filepath)
         except Exception as prep_err:
              logging.error(f"Openpyxl pre-processing failed: {prep_err}", exc_info=True)
@@ -713,33 +713,33 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
              raise # Stop if critical prep fails
         finally:
              if destfile: destfile.close(); destfile=None
-        yield sse_message(" -> Openpyxl Pre-processing complete."); time.sleep(0.1)
+        yield sse_message(" -> Pre-processing complete."); time.sleep(0.1)
 
         # --- Steps 9-10: Pandas Operations (using original helpers) ---
-        yield sse_message("Step 9: Removing unused columns (pandas)..."); time.sleep(0.1)
+        yield sse_message("Step 9: Removing unused columns..."); time.sleep(0.1)
         try: del_cols_vInfo(intermediate_filepath) # Operate on intermediate file
         except Exception as e: logging.error(f"Pandas del_cols error: {e}", exc_info=True); raise
         yield sse_message(" -> Unused columns removed."); time.sleep(0.1)
 
-        yield sse_message("Step 10: Creating vSummary sheet (pandas)..."); time.sleep(0.1)
+        yield sse_message("Step 10: Creating vSummary sheet..."); time.sleep(0.1)
         try: trunc_cols_vPart(intermediate_filepath) # This overwrites intermediate file
         except Exception as e: logging.error(f"Pandas trunc_cols error: {e}", exc_info=True); raise
         yield sse_message(" -> vSummary sheet created/updated."); time.sleep(0.1)
 
         # --- Step 11: Openpyxl Final Cleanup (before summary generation - using original helpers) ---
-        yield sse_message("Step 11: Performing final Openpyxl cleanup..."); time.sleep(0.1)
+        yield sse_message("Step 11: Performing cleanup..."); time.sleep(0.1)
         try:
             destfile = xl.load_workbook(intermediate_filepath) # Load the file pandas wrote
             removeFormatting(destfile) # Remove pandas formatting artefacts
             if 'vSummary' in destfile.sheetnames:
                  trimvSum1(destfile) # Trim MiB cols
                  consol_vSum(destfile) # Consolidate Consumed GB
-            else: logging.warning("vSummary not found for final cleanup (trim/consol).")
+            else: logging.warning("vSummary not found for cleanup (trim/consol).")
             # NO filtering here
             logging.info(f"Saving final cleaned data to: {output_filepath}")
             destfile.save(output_filepath); # Save final cleaned version to the actual output path
         except Exception as clean_err:
-             logging.error(f"Final Openpyxl cleanup failed: {clean_err}", exc_info=True)
+             logging.error(f"Cleanup failed: {clean_err}", exc_info=True)
              yield sse_message(f"ERROR during Step 11 cleanup: {clean_err}"); time.sleep(0.1)
              # If cleanup fails, maybe still try to generate summaries from intermediate? Or stop? Stopping seems safer.
              raise
@@ -749,13 +749,13 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
              try:
                   if os.path.exists(intermediate_filepath): os.remove(intermediate_filepath)
              except OSError as rm_err: logging.warning(f"Could not remove intermediate file {intermediate_filepath}: {rm_err}")
-        yield sse_message(" -> Final cleanup complete."); time.sleep(0.1)
+        yield sse_message(" -> Cleanup complete."); time.sleep(0.1)
 
         # --- Step 13: Categorize, Generate Summaries (using calculate_summaries) & Write Sheets ---
         yield sse_message("Step 13: Categorizing and generating analysis summaries..."); time.sleep(0.1)
         summary_sheets_generated = []
         try:
-            yield sse_message(" -> Reading final cleaned vSummary sheet..."); time.sleep(0.1)
+            yield sse_message(" -> Reading cleaned vSummary sheet..."); time.sleep(0.1)
             # Read from the final cleaned output file
             df_summary_source = pd.read_excel(output_filepath, sheet_name='vSummary', engine='openpyxl')
             if df_summary_source.empty: raise ValueError("vSummary sheet is empty after cleanup.")
@@ -796,13 +796,13 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
             except Exception as pos_err: yield sse_message(f" -> Warn: Error positioning category columns: {pos_err}")
 
             # --- Call calculate_summaries function ---
-            yield sse_message(" -> Calculating summaries using refactored function..."); time.sleep(0.1)
+            yield sse_message(" -> Calculating summaries..."); time.sleep(0.1)
             summary_dfs = calculate_summaries(df_summary_source.copy()) # Pass copy
             if not summary_dfs: raise ValueError("Summary calculation function returned empty results.")
             yield sse_message(" -> Summaries calculated."); time.sleep(0.05)
 
             # --- Write sheets using append/replace mode ---
-            yield sse_message(" -> Writing categorized vSummary and summary sheets..."); time.sleep(0.1)
+            yield sse_message(" -> Writing categorized vSummary and Overall Summary sheets..."); time.sleep(0.1)
             with pd.ExcelWriter(output_filepath, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
                 # Write categorized vSummary back (replacing the version from step 11)
                 df_summary_source.to_excel(writer, sheet_name='vSummary', index=False)
@@ -812,9 +812,9 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
                 for sheet_name, df_to_write in summary_dfs.items():
                         if not df_to_write.empty:
                             df_to_write.to_excel(writer, sheet_name=sheet_name, index=False)
-                            logging.info(f"Wrote summary sheet: {sheet_name}")
+                            logging.info(f"Wrote Overall Summary sheet: {sheet_name}")
                             summary_sheets_generated.append(sheet_name)
-                        else: logging.warning(f"Skipping empty summary sheet: {sheet_name}")
+                        else: logging.warning(f"Skipping empty Overall Summary sheet: {sheet_name}")
             yield sse_message(f" -> {len(summary_sheets_generated)} sheets written/updated in Step 13."); time.sleep(0.1)
 
         except Exception as summary_err:
@@ -823,13 +823,13 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
             raise # Stop processing if this critical step fails
 
         # --- Step 14: Add Formulas, Reorder Sheets & Apply Filters (Openpyxl - using original helpers) ---
-        yield sse_message("Step 14: Adding SUBTOTALs, reordering sheets, filtering..."); time.sleep(0.1)
+        yield sse_message("Step 14: Adding subtotals, reordering sheets, and applying first row filtering..."); time.sleep(0.1)
         try:
-            logging.info("Loading workbook for final Openpyxl adjustments...")
+            logging.info("Loading workbook for final adjustments...")
             workbook = xl.load_workbook(output_filepath)
 
             # --- Add SUBTOTAL Formulas ---
-            logging.info("Adding SUBTOTAL rows...")
+            logging.info("Adding subtotal rows...")
             sheets_for_subtotals = { # Map sheet name to numeric columns and label column index
                 'Overall Summary Totals': {'cols': [3, 4, 5], 'label_col': 1}, # VM Count, Disks, Consumed GB; Label Col A (Workload)
                 'Overall Powerstate Counts': {'cols': [4], 'label_col': 1}, # VM Count; Label Col A (Workload)
@@ -850,9 +850,9 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
                                 prev_cell = ws.cell(row=max_row, column=col_idx)
                                 if prev_cell.number_format: total_cell.number_format = prev_cell.number_format
                         subtotal_added_count += 1
-                        logging.info(f"Added SUBTOTAL row to '{sheet_name}'.")
-                else: logging.warning(f"Sheet '{sheet_name}' not found for SUBTOTAL.")
-            yield sse_message(f" -> Added SUBTOTAL rows to {subtotal_added_count} sheets."); time.sleep(0.1)
+                        logging.info(f"Added subtotal row to '{sheet_name}'.")
+                else: logging.warning(f"Sheet '{sheet_name}' not found for subtotal.")
+            yield sse_message(f" -> Added subtotal rows to {subtotal_added_count} sheets."); time.sleep(0.1)
 
             # --- Reorder Sheets ---
             logging.info("Reordering sheets...")
@@ -864,7 +864,7 @@ def process_rvtools_file(input_filepath, output_folder, original_basename):
 
             # --- Apply Filters (using original helper) ---
             filter_rows(workbook) # Applies filters and freezes panes
-            yield sse_message(" -> Filters applied."); time.sleep(0.1)
+            yield sse_message(" -> First row filters applied."); time.sleep(0.1)
 
             # --- Final Save ---
             logging.info("Saving final adjusted workbook...")
