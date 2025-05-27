@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         /* Your existing styles */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background-color: #f8f9fa; padding-bottom: 40px; line-height: 1.5;}
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; padding-bottom: 40px; line-height: 1.5;}
         .container { max-width: 900px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         h1 { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 25px; font-size: 1.8em;}
         .form-label { font-weight: 500; }
@@ -24,7 +24,7 @@
         .file-item-actions a, .file-item-actions button, .file-item-actions .btn-sm { margin-left: 5px; } /* Added button */
         .section-title { margin-top: 25px; margin-bottom: 10px; font-size: 1.2em; color: #333; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
         .list-header { font-weight: bold; display: flex; padding: 10px 15px; margin-bottom: 0px; border-bottom: 2px solid #dee2e6;}
-        .nav-link-home { display: inline-block; margin-top: 30px; color: #007bff; }
+        .nav-link-home { display: inline-block; margin-top: 30px; color: #007bff; } 
         .no-files { color: #6c757d; font-style: italic; padding: 10px 15px; }
         .status-message-browse { margin-top:10px; padding: 10px; border-radius: 4px; display:none; }
         .status-message-browse.success { background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;}
@@ -58,8 +58,9 @@
                 <label for="clientSelect" class="form-label">Select Client:</label>
                 <select id="clientSelect" class="form-select">
                     <option value="">-- Select Client --</option>
-                    {% for client in client_list %}
-                        <option value="{{ client }}" {% if client == preselected_client %}selected{% endif %}>{{ client }}</option>
+                    {% for client_item in client_list %}
+                        {# MODIFIED: Replace underscores with spaces for client name display #}
+                        <option value="{{ client_item }}" {% if client_item == preselected_client %}selected{% endif %}>{{ client_item.replace('_', ' ') }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -103,7 +104,6 @@
         const fileDisplayArea = document.getElementById('fileDisplayArea');
         const browseStatusMessage = document.getElementById('browseStatusMessage');
 
-
         const preselectedClient = "{{ preselected_client or '' }}";
         const preselectedProject = "{{ preselected_project or '' }}";
 
@@ -111,14 +111,13 @@
             browseStatusMessage.textContent = message;
             browseStatusMessage.className = 'status-message-browse ' + (isSuccess ? 'success' : 'error');
             browseStatusMessage.style.display = 'block';
-            setTimeout(() => { browseStatusMessage.style.display = 'none'; }, 5000); // Hide after 5 seconds
+            setTimeout(() => { browseStatusMessage.style.display = 'none'; }, 5000);
         }
 
         function populateProjects(clientName, selectedProject = null) {
-            // ... (existing populateProjects logic - no changes needed here) ...
             projectSelect.innerHTML = '<option value="">Loading Projects...</option>';
             projectSelect.disabled = true;
-            fileDisplayArea.style.display = 'none';
+            fileDisplayArea.style.display = 'none'; 
             originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
             analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
 
@@ -130,39 +129,58 @@
             fetch(`/get_projects/${encodeURIComponent(clientName)}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.error) { projectSelect.innerHTML = `<option value="">Error: ${data.error}</option>`; return; }
+                    if (data.error) {
+                        projectSelect.innerHTML = `<option value="">Error: ${data.error}</option>`;
+                        return;
+                    }
                     projectSelect.innerHTML = '<option value="">-- Select Project --</option>';
                     if (data.projects && data.projects.length > 0) {
-                        data.projects.forEach(project => {
+                        data.projects.forEach(projectValue => { 
                             const option = document.createElement('option');
-                            option.value = project; option.textContent = project;
-                            if (project === selectedProject) { option.selected = true; }
+                            option.value = projectValue;
+                             // MODIFIED: Replace underscores with spaces for project name display
+                            option.textContent = projectValue.replace(/_/g, ' '); 
+                            if (projectValue === selectedProject) {
+                                option.selected = true;
+                            }
                             projectSelect.appendChild(option);
                         });
                         projectSelect.disabled = false;
-                        if (selectedProject && data.projects.includes(selectedProject)) {
-                            projectSelect.value = selectedProject; populateFiles(clientName, selectedProject);
+                        if (selectedProject && projectSelect.value === selectedProject) {
+                           populateFiles(clientName, selectedProject);
                         }
-                    } else { projectSelect.innerHTML = '<option value="">No projects found for this client.</option>'; }
+                    } else {
+                        projectSelect.innerHTML = '<option value="">No projects found for this client.</option>';
+                    }
                 })
-                .catch(error => { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="">Error loading projects.</option>'; });
+                .catch(error => {
+                    console.error('Error fetching projects:', error);
+                    projectSelect.innerHTML = '<option value="">Error loading projects.</option>';
+                });
         }
 
-        function deleteFile(client, project, fileType, filename, listItemElement) {
-            if (!confirm(`Are you sure you want to delete "${filename}"? This action cannot be undone.`)) {
+        function deleteFile(client, project, fileType, rawFilename, listItemElement) {
+            // Display raw filename in confirmation (no underscore replacement)
+            if (!confirm(`Are you sure you want to delete "${rawFilename}"? This action cannot be undone.`)) {
                 return;
             }
-            const deleteUrl = `/delete_file/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${encodeURIComponent(fileType)}/${encodeURIComponent(filename)}`;
+            const deleteUrl = `/delete_file/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${fileType}/${encodeURIComponent(rawFilename)}`;
             fetch(deleteUrl, { method: 'DELETE' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        listItemElement.remove(); // Remove the item from the list
-                        showBrowseStatus(data.message || `File "${filename}" deleted successfully.`, true);
-                        // Optional: re-populate files if the list might be empty now
-                        // populateFiles(client, project); 
+                        listItemElement.remove();
+                        // Display raw filename in status message
+                        showBrowseStatus(data.message || `File "${rawFilename}" deleted successfully.`, true);
+                        if (originalFilesList.children.length === 0) {
+                            originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
+                        }
+                        if (analyzedFilesList.children.length === 0) {
+                            analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
+                        }
                     } else {
-                        showBrowseStatus(data.message || `Error deleting file "${filename}".`, false);
+                        // Display raw filename in status message
+                        showBrowseStatus(data.message || `Error deleting file "${rawFilename}".`, false);
                     }
                 })
                 .catch(error => {
@@ -171,8 +189,7 @@
                 });
         }
 
-
-        function populateFiles(clientName, projectName) {
+        function populateFiles(clientName, projectName) { 
             fileDisplayArea.style.display = 'none';
             originalFilesList.innerHTML = '<li class="no-files">Loading files...</li>';
             analyzedFilesList.innerHTML = '<li class="no-files">Loading files...</li>';
@@ -193,14 +210,14 @@
                         return;
                     }
 
-                    // Function to create a file list item
-                    function createListItem(fileObj, typeFolder) { // typeFolder will be 'Originals' or 'Analyzed'
+                    function createListItem(fileObj, typeFolder) { 
                         const li = document.createElement('li');
 
                         const nameDiv = document.createElement('div');
                         nameDiv.className = 'file-item-name';
+                        // MODIFIED: Display raw filename (no underscore replacement)
                         nameDiv.textContent = fileObj.name;
-                        nameDiv.title = fileObj.name;
+                        nameDiv.title = fileObj.name; 
                         li.appendChild(nameDiv);
 
                         const timestampDiv = document.createElement('div');
@@ -211,7 +228,6 @@
                         const actionsDiv = document.createElement('div');
                         actionsDiv.className = 'file-item-actions';
 
-                        // Download button
                         const downloadPath = `${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${typeFolder}/${encodeURIComponent(fileObj.name)}`;
                         const downloadLink = document.createElement('a');
                         downloadLink.href = `/download/${downloadPath}`;
@@ -219,8 +235,7 @@
                         downloadLink.textContent = 'Download';
                         actionsDiv.appendChild(downloadLink);
 
-                        // Add View Results and Edit buttons only for Analyzed/Edited files
-                        if (typeFolder === 'Analyzed') { // 'Analyzed' covers both -ANALYZED and -EDITED here
+                        if (typeFolder === 'Analyzed') { 
                             const resultsUrl = `/results/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(fileObj.name)}`;
                             const resultsLink = document.createElement('a');
                             resultsLink.href = resultsUrl;
@@ -228,30 +243,28 @@
                             resultsLink.textContent = 'View';
                             actionsDiv.appendChild(resultsLink);
 
-                            const editUrl = `/edit/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(fileObj.name)}`;
-                            const editLink = document.createElement('a');
-                            editLink.href = editUrl;
-                            editLink.className = 'btn btn-sm btn-secondary';
-                            editLink.textContent = 'Edit';
-                            actionsDiv.appendChild(editLink);
+                            if (fileObj.name.toLowerCase().endsWith('-analyzed.xlsx') || fileObj.name.toLowerCase().endsWith('-edited.xlsx')) {
+                                const editUrl = `/edit/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(fileObj.name)}`;
+                                const editLink = document.createElement('a');
+                                editLink.href = editUrl;
+                                editLink.className = 'btn btn-sm btn-secondary';
+                                editLink.textContent = 'Edit';
+                                actionsDiv.appendChild(editLink);
+                            }
                         }
                         
-                        // --- Add Delete Button ---
                         const deleteButton = document.createElement('button');
                         deleteButton.className = 'btn btn-sm btn-outline-danger';
                         deleteButton.textContent = 'Delete';
-                        deleteButton.type = 'button'; // Important for buttons not submitting forms
+                        deleteButton.type = 'button';
                         deleteButton.onclick = function() {
                             deleteFile(clientName, projectName, typeFolder, fileObj.name, li);
                         };
                         actionsDiv.appendChild(deleteButton);
-                        // --- End Delete Button ---
-
                         li.appendChild(actionsDiv);
                         return li;
                     }
 
-                    // Originals
                     originalFilesList.innerHTML = '';
                     if (data.originals && data.originals.length > 0) {
                         data.originals.forEach(fileObj => {
@@ -261,11 +274,10 @@
                         originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
                     }
 
-                    // Analyzed/Edited
                     analyzedFilesList.innerHTML = '';
                     if (data.analyzed && data.analyzed.length > 0) {
                         data.analyzed.forEach(fileObj => {
-                           analyzedFilesList.appendChild(createListItem(fileObj, 'Analyzed')); // 'Analyzed' folder for path
+                            analyzedFilesList.appendChild(createListItem(fileObj, 'Analyzed'));
                         });
                     } else {
                         analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
@@ -278,10 +290,18 @@
                 });
         }
 
-        clientSelect.addEventListener('change', function() { populateProjects(this.value); });
-        projectSelect.addEventListener('change', function() { populateFiles(clientSelect.value, this.value); });
+        clientSelect.addEventListener('change', function() {
+            populateProjects(this.value, null); 
+        });
+        projectSelect.addEventListener('change', function() {
+            populateFiles(clientSelect.value, this.value);
+        });
+
         window.addEventListener('DOMContentLoaded', (event) => {
-            if (preselectedClient) { clientSelect.value = preselectedClient; populateProjects(preselectedClient, preselectedProject); }
+            if (preselectedClient) {
+                clientSelect.value = preselectedClient; 
+                populateProjects(preselectedClient, preselectedProject);
+            }
         });
     </script>
 </body>

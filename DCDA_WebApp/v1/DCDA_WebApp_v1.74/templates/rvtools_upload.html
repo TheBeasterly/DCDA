@@ -51,8 +51,9 @@
                 <div class="input-group">
                     <select id="clientSelect" name="selected_client" class="form-select">
                         <option value="">-- Select Existing Client --</option>
-                        {% for client in client_list %}
-                            <option value="{{ client }}">{{ client }}</option>
+                        {% for client_dir_name in client_list %} {# client_dir_name is the raw directory name #}
+                            {# MODIFIED: Replace underscores with spaces for display text only #}
+                            <option value="{{ client_dir_name }}">{{ client_dir_name.replace('_', ' ') }}</option>
                         {% endfor %}
                         <option value="_new">-- Add New Client --</option>
                     </select>
@@ -108,9 +109,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- Your existing JavaScript for client/project dropdowns, file collision check ---
-        // --- and the XHR upload logic with progress bar should follow here ---
-        // --- Ensure this JS part is complete from the version where we added XHR ---
         const clientSelect = document.getElementById('clientSelect');
         const newClientNameDiv = document.getElementById('newClientNameDiv');
         const newClientNameInput = document.getElementById('newClientNameInput');
@@ -119,13 +117,13 @@
         const newProjectNameInput = document.getElementById('newProjectNameInput');
         const rvtoolsFile = document.getElementById('rvtoolsFile');
         const fileCollisionOptions = document.getElementById('fileCollisionOptions');
-        const uploadForm = document.getElementById('uploadForm'); // Correctly defined
+        const uploadForm = document.getElementById('uploadForm'); 
         const uploadStatusMessage = document.getElementById('uploadStatusMessage');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const submitButton = document.getElementById('submitButton');
 
-        const defaultProjectName = "General"; // Make sure this matches app.py
+        const defaultProjectName = "General"; 
 
         function showStatus(message, isSuccess) {
             uploadStatusMessage.textContent = message;
@@ -137,22 +135,49 @@
         }
         
         clientSelect.addEventListener('change', function() {
-            const selectedValue = this.value;
+            const selectedValue = this.value; // This is the raw directory name
             newClientNameDiv.style.display = selectedValue === '_new' ? 'block' : 'none';
             newClientNameInput.required = selectedValue === '_new';
-            if (selectedValue && selectedValue !== '_new') { populateProjects(selectedValue); }
-            else { projectSelect.innerHTML = '<option value="">-- Select Client First --</option>'; projectSelect.disabled = true; newProjectNameDiv.style.display = 'none'; newProjectNameInput.value = '';}
+
+            if (selectedValue && selectedValue !== '_new') { 
+                populateProjects(selectedValue);
+            } else if (selectedValue === '_new') { 
+                projectSelect.innerHTML = `<option value="_general_select">-- ${defaultProjectName} (Default) --</option>`;
+                const addNewOpt = document.createElement('option');
+                addNewOpt.value = '_new';
+                addNewOpt.textContent = '-- Add New Project --';
+                projectSelect.appendChild(addNewOpt);
+                projectSelect.disabled = false;
+                newProjectNameDiv.style.display = 'none'; 
+                newProjectNameInput.value = '';
+                newProjectNameInput.required = false; 
+            } else { 
+                projectSelect.innerHTML = '<option value="">-- Select Client First --</option>';
+                projectSelect.disabled = true;
+                newProjectNameDiv.style.display = 'none';
+                newProjectNameInput.value = '';
+            }
             checkFileCollision();
         });
 
-        function populateProjects(clientName) {
+        function populateProjects(clientDirName) { // clientDirName is the raw directory name
             projectSelect.innerHTML = '<option value="">Loading...</option>'; projectSelect.disabled = true;
             newProjectNameDiv.style.display = 'none'; newProjectNameInput.value = '';
-            fetch(`/get_projects/${encodeURIComponent(clientName)}`)
+            fetch(`/get_projects/${encodeURIComponent(clientDirName)}`)
                 .then(response => response.json()).then(data => {
                     projectSelect.innerHTML = `<option value="_general_select">-- ${defaultProjectName} (Default) --</option>`;
-                    if (data.projects && data.projects.length > 0) { data.projects.forEach(p => { const opt = document.createElement('option'); opt.value = p; opt.textContent = p; projectSelect.appendChild(opt); }); }
-                    const addNewOpt = document.createElement('option'); addNewOpt.value = '_new'; addNewOpt.textContent = '-- Add New Project --';
+                    if (data.projects && data.projects.length > 0) {
+                        data.projects.forEach(projectDirName => { // projectDirName is raw from backend
+                            const opt = document.createElement('option');
+                            opt.value = projectDirName; // Use raw directory name for value
+                            // MODIFIED: Replace underscores with spaces for display text only
+                            opt.textContent = projectDirName.replace(/_/g, ' '); 
+                            projectSelect.appendChild(opt);
+                        });
+                    }
+                    const addNewOpt = document.createElement('option');
+                    addNewOpt.value = '_new';
+                    addNewOpt.textContent = '-- Add New Project --';
                     projectSelect.appendChild(addNewOpt);
                     projectSelect.disabled = false;
                 }).catch(error => { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="">Error loading projects</option>'; });
@@ -170,14 +195,20 @@
         rvtoolsFile.addEventListener('change', checkFileCollision);
 
         function checkFileCollision() {
-            const clientVal = clientSelect.value; const projectVal = projectSelect.value;
+            const clientVal = clientSelect.value; 
+            const projectVal = projectSelect.value;
+            
+            // client and project here will be the raw directory names or user input
             const client = clientVal === '_new' ? newClientNameInput.value.trim() : clientVal;
             let project;
             if (projectVal === '_new') { project = newProjectNameInput.value.trim(); }
             else if (projectVal === '_general_select' || projectVal === '' || !projectVal) { project = defaultProjectName; }
             else { project = projectVal; }
-            const file = rvtoolsFile.files[0];
+            
+            const file = rvtoolsFile.files[0]; // file.name is the raw filename
+            
             if (client && project && file && file.name) {
+                // Use raw names for the API check
                 fetch(`/check_file_exists/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${encodeURIComponent(file.name)}`)
                 .then(response => response.json()).then(data => {
                     if (data.error) { console.error("File check error:", data.error); fileCollisionOptions.style.display = 'none'; }
@@ -188,30 +219,41 @@
         }
 
         uploadForm.addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevent default form submission
+            event.preventDefault(); 
 
-            const fileInput = document.getElementById('rvtoolsFile'); // Ensure this ID matches your file input
+            const fileInput = document.getElementById('rvtoolsFile');
             if (!fileInput.files || fileInput.files.length === 0) {
-                showStatus('Please select a file to upload.', false); // Ensure showStatus is defined
+                showStatus('Please select a file to upload.', false); 
                 return;
             }
-            if (!fileInput.files || fileInput.files.length === 0) { showStatus('Please select a file to upload.', false); return; }
-            let clientNameToSubmit = clientSelect.value;
-            if (clientNameToSubmit === '_new') { clientNameToSubmit = newClientNameInput.value.trim(); if (!clientNameToSubmit) { showStatus('New Client Name cannot be empty.', false); return; }}
-            else if (!clientNameToSubmit) { showStatus('Please select or add a Client.', false); return; }
-            let projectNameToSubmit = projectSelect.value;
-            if (projectNameToSubmit === '_new') { projectNameToSubmit = newProjectNameInput.value.trim() || defaultProjectName; }
-            else if (projectNameToSubmit === '_general_select' || !projectNameToSubmit) { projectNameToSubmit = defaultProjectName; }
+            
+            let clientNameToSubmit = clientSelect.value; // This is the raw directory name or '_new'
+            if (clientNameToSubmit === '_new') { 
+                clientNameToSubmit = newClientNameInput.value.trim(); 
+                if (!clientNameToSubmit) { showStatus('New Client Name cannot be empty.', false); return; }
+            } else if (!clientNameToSubmit) { 
+                showStatus('Please select or add a Client.', false); return; 
+            }
+            
+            let projectNameToSubmit = projectSelect.value; // This is the raw directory name or '_new' or '_general_select'
+            if (projectNameToSubmit === '_new') { 
+                projectNameToSubmit = newProjectNameInput.value.trim() || defaultProjectName; 
+            } else if (projectNameToSubmit === '_general_select' || !projectNameToSubmit) { 
+                projectNameToSubmit = defaultProjectName; 
+            }
 
-            const formData = new FormData(uploadForm); // This correctly collects all form fields
+            const formData = new FormData(uploadForm); 
+            // Note: FormData will send the 'value' of select elements (which are raw dir names)
+            // and the typed input for new_client_name/new_project_name.
+            // The backend app.py uses these raw values to create secure folder names.
 
             const xhr = new XMLHttpRequest();
             progressBar.style.width = '0%';
             progressBar.textContent = '0%';
-            progressBar.classList.remove('bg-success', 'bg-danger'); // Remove status colors
+            progressBar.classList.remove('bg-success', 'bg-danger'); 
             progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
-            progressContainer.style.display = 'block'; // Make progress container visible
-            uploadStatusMessage.style.display = 'none'; // Hide previous status messages
+            progressContainer.style.display = 'block'; 
+            uploadStatusMessage.style.display = 'none'; 
             if(submitButton) submitButton.disabled = true;
 
 
@@ -225,34 +267,32 @@
 
             xhr.addEventListener('load', function() {
                 if(submitButton) submitButton.disabled = false;
-                // Keep progress bar visible briefly on success/error to show final state if desired
-                // or hide immediately: progressContainer.style.display = 'none'; 
-
-                if (xhr.status >= 200 && xhr.status < 300) { // Success range
+                
+                if (xhr.status >= 200 && xhr.status < 300) { 
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.success) {
-                            // Optionally show 100% success on progress bar before hiding/redirecting
                             progressBar.style.width = '100%';
                             progressBar.textContent = '100% - Complete';
                             progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-                            progressBar.classList.add('bg-success'); // Bootstrap success color
-
+                            progressBar.classList.add('bg-success'); 
+                            // response.message from backend likely contains the raw (or secured) filename.
+                            // We display it as-is, which is correct for filenames.
                             showStatus(response.message || 'Upload successful, processing started.', true);
                             if (response.redirect_url) {
-                                // Delay redirect slightly to allow user to see "Complete"
                                 setTimeout(() => { window.location.href = response.redirect_url; }, 1000);
                             } else {
                                 console.error("No redirect URL provided from backend.");
                                 showStatus("Upload successful, but could not navigate to processing page.", false);
-                                progressContainer.style.display = 'none'; // Hide if staying on page
+                                progressContainer.style.display = 'none'; 
                             }
                         } else {
-                            // Server responded with success=false
-                            progressBar.style.width = '100%'; // Or keep at current upload %
+                            progressBar.style.width = '100%'; 
                             progressBar.textContent = 'Failed';
                             progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
-                            progressBar.classList.add('bg-danger'); // Bootstrap danger color
+                            progressBar.classList.add('bg-danger'); 
+                            // response.message might contain client/project names or filenames.
+                            // Displaying as-is from backend.
                             showStatus(response.message || 'Upload failed. Please try again.', false);
                         }
                     } catch (e) {
@@ -261,7 +301,7 @@
                         progressBar.classList.add('bg-danger');
                         showStatus('Error processing server response.', false);
                     }
-                } else { // HTTP error
+                } else { 
                     console.error("Upload failed with HTTP status:", xhr.status, xhr.statusText);
                     progressBar.style.width = '100%';
                     progressBar.textContent = `Error: ${xhr.status}`;
@@ -269,13 +309,13 @@
                     progressBar.classList.add('bg-danger');
                     let errorMessage = `Upload failed: ${xhr.statusText || 'Server error'}`;
                     try { const errorResponse = JSON.parse(xhr.responseText); if(errorResponse && errorResponse.message) { errorMessage = `Upload failed: ${errorResponse.message}`; }} catch(e) { /* Ignore */ }
-                    showStatus(errorMessage, false);
+                    showStatus(errorMessage, false); // Displaying as-is from backend.
                 }
             });
 
             xhr.addEventListener('error', function() {
                 if(submitButton) submitButton.disabled = false;
-                progressContainer.style.display = 'none'; // Hide on network error
+                progressContainer.style.display = 'none'; 
                 showStatus('Upload failed due to a network error or server being unavailable.', false);
                 console.error("Upload XHR error.");
             });
@@ -284,7 +324,6 @@
             xhr.send(formData);
         });
 
-        // Initialize dropdowns if preselected (though not typical for upload page from scratch)
         if (clientSelect.value && clientSelect.value !== '_new') {
             populateProjects(clientSelect.value);
         }
