@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCDA - Browse Projects</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Your existing styles */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; margin: 20px; background-color: #f8f9fa; padding-bottom: 40px; line-height: 1.5;}
+        .container { max-width: 900px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 25px; font-size: 1.8em;}
+        .form-label { font-weight: 500; }
+        .file-list { list-style-type: none; padding-left: 0; }
+        .file-list li {
+            background-color: #fff; border: 1px solid #ddd;
+            padding: 10px 15px; margin-bottom: 8px; border-radius: 4px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap;
+        }
+        .file-list li:hover { background-color: #f9f9f9; }
+        .file-item-name { flex-basis: 45%; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px;} /* Adjusted width */
+        .file-item-timestamp { flex-basis: 25%; flex-grow: 0; flex-shrink: 0; font-size: 0.85em; color: #6c757d; text-align: left; padding-right: 10px;} /* Adjusted width */
+        .file-item-actions { flex-basis: 30%; flex-grow: 0; flex-shrink: 0; text-align: right; white-space: nowrap;} /* Adjusted width */
+        .file-item-actions a, .file-item-actions button, .file-item-actions .btn-sm { margin-left: 5px; } /* Added button */
+        .section-title { margin-top: 25px; margin-bottom: 10px; font-size: 1.2em; color: #333; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
+        .list-header { font-weight: bold; display: flex; padding: 10px 15px; margin-bottom: 0px; border-bottom: 2px solid #dee2e6;}
+        .nav-link-home { display: inline-block; margin-top: 30px; color: #007bff; } 
+        .no-files { color: #6c757d; font-style: italic; padding: 10px 15px; }
+        .status-message-browse { margin-top:10px; padding: 10px; border-radius: 4px; display:none; }
+        .status-message-browse.success { background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;}
+        .status-message-browse.error { background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Browse Existing Projects</h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm mb-3">&larr; DCDA Home</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div id="browseStatusMessage" class="status-message-browse"></div>
+
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="clientSelect" class="form-label">Select Client:</label>
+                <select id="clientSelect" class="form-select">
+                    <option value="">-- Select Client --</option>
+                    {% for client_item in client_list %}
+                        {# MODIFIED: Replace underscores with spaces for client name display #}
+                        <option value="{{ client_item }}" {% if client_item == preselected_client %}selected{% endif %}>{{ client_item.replace('_', ' ') }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="projectSelect" class="form-label">Select Project:</label>
+                <select id="projectSelect" class="form-select" disabled>
+                    <option value="">-- Select Client First --</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="fileDisplayArea" style="display:none;">
+            <h2 class="section-title">Original Files</h2>
+            <div class="list-header">
+                <div class="file-item-name">Filename</div>
+                <div class="file-item-timestamp">Last Modified</div>
+                <div class="file-item-actions">Actions</div>
+            </div>
+            <ul id="originalFilesList" class="file-list">
+                <li class="no-files">No original files found or project not selected.</li>
+            </ul>
+
+            <h2 class="section-title">Analyzed/Edited Files</h2>
+            <div class="list-header">
+                <div class="file-item-name">Filename</div>
+                <div class="file-item-timestamp">Last Modified</div>
+                <div class="file-item-actions">Actions</div>
+            </div>
+            <ul id="analyzedFilesList" class="file-list">
+                 <li class="no-files">No analyzed/edited files found or project not selected.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const clientSelect = document.getElementById('clientSelect');
+        const projectSelect = document.getElementById('projectSelect');
+        const originalFilesList = document.getElementById('originalFilesList');
+        const analyzedFilesList = document.getElementById('analyzedFilesList');
+        const fileDisplayArea = document.getElementById('fileDisplayArea');
+        const browseStatusMessage = document.getElementById('browseStatusMessage');
+
+        const preselectedClient = "{{ preselected_client or '' }}";
+        const preselectedProject = "{{ preselected_project or '' }}";
+
+        function showBrowseStatus(message, isSuccess) {
+            browseStatusMessage.textContent = message;
+            browseStatusMessage.className = 'status-message-browse ' + (isSuccess ? 'success' : 'error');
+            browseStatusMessage.style.display = 'block';
+            setTimeout(() => { browseStatusMessage.style.display = 'none'; }, 5000);
+        }
+
+        function populateProjects(clientName, selectedProject = null) {
+            projectSelect.innerHTML = '<option value="">Loading Projects...</option>';
+            projectSelect.disabled = true;
+            fileDisplayArea.style.display = 'none'; 
+            originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
+            analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
+
+            if (!clientName) {
+                projectSelect.innerHTML = '<option value="">-- Select Client First --</option>';
+                return;
+            }
+
+            fetch(`/get_projects/${encodeURIComponent(clientName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        projectSelect.innerHTML = `<option value="">Error: ${data.error}</option>`;
+                        return;
+                    }
+                    projectSelect.innerHTML = '<option value="">-- Select Project --</option>';
+                    if (data.projects && data.projects.length > 0) {
+                        data.projects.forEach(projectValue => { 
+                            const option = document.createElement('option');
+                            option.value = projectValue;
+                             // MODIFIED: Replace underscores with spaces for project name display
+                            option.textContent = projectValue.replace(/_/g, ' '); 
+                            if (projectValue === selectedProject) {
+                                option.selected = true;
+                            }
+                            projectSelect.appendChild(option);
+                        });
+                        projectSelect.disabled = false;
+                        if (selectedProject && projectSelect.value === selectedProject) {
+                           populateFiles(clientName, selectedProject);
+                        }
+                    } else {
+                        projectSelect.innerHTML = '<option value="">No projects found for this client.</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching projects:', error);
+                    projectSelect.innerHTML = '<option value="">Error loading projects.</option>';
+                });
+        }
+
+        function deleteFile(client, project, fileType, rawFilename, listItemElement) {
+            // Display raw filename in confirmation (no underscore replacement)
+            if (!confirm(`Are you sure you want to delete "${rawFilename}"? This action cannot be undone.`)) {
+                return;
+            }
+            const deleteUrl = `/delete_file/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${fileType}/${encodeURIComponent(rawFilename)}`;
+            fetch(deleteUrl, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        listItemElement.remove();
+                        // Display raw filename in status message
+                        showBrowseStatus(data.message || `File "${rawFilename}" deleted successfully.`, true);
+                        if (originalFilesList.children.length === 0) {
+                            originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
+                        }
+                        if (analyzedFilesList.children.length === 0) {
+                            analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
+                        }
+                    } else {
+                        // Display raw filename in status message
+                        showBrowseStatus(data.message || `Error deleting file "${rawFilename}".`, false);
+                    }
+                })
+                .catch(error => {
+                    console.error('Delete file error:', error);
+                    showBrowseStatus(`Error deleting file: ${error}`, false);
+                });
+        }
+
+        function populateFiles(clientName, projectName) { 
+            fileDisplayArea.style.display = 'none';
+            originalFilesList.innerHTML = '<li class="no-files">Loading files...</li>';
+            analyzedFilesList.innerHTML = '<li class="no-files">Loading files...</li>';
+
+            if (!clientName || !projectName) {
+                originalFilesList.innerHTML = '<li class="no-files">Select client and project.</li>';
+                analyzedFilesList.innerHTML = '<li class="no-files">Select client and project.</li>';
+                return;
+            }
+            fileDisplayArea.style.display = 'block';
+
+            fetch(`/get_files/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        originalFilesList.innerHTML = `<li class="no-files">Error: ${data.error}</li>`;
+                        analyzedFilesList.innerHTML = `<li class="no-files">Error: ${data.error}</li>`;
+                        return;
+                    }
+
+                    function createListItem(fileObj, typeFolder) { 
+                        const li = document.createElement('li');
+
+                        const nameDiv = document.createElement('div');
+                        nameDiv.className = 'file-item-name';
+                        // MODIFIED: Display raw filename (no underscore replacement)
+                        nameDiv.textContent = fileObj.name;
+                        nameDiv.title = fileObj.name; 
+                        li.appendChild(nameDiv);
+
+                        const timestampDiv = document.createElement('div');
+                        timestampDiv.className = 'file-item-timestamp';
+                        timestampDiv.textContent = fileObj.timestamp || 'N/A';
+                        li.appendChild(timestampDiv);
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'file-item-actions';
+
+                        const downloadPath = `${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${typeFolder}/${encodeURIComponent(fileObj.name)}`;
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = `/download/${downloadPath}`;
+                        downloadLink.className = 'btn btn-sm btn-outline-success';
+                        downloadLink.textContent = 'Download';
+                        actionsDiv.appendChild(downloadLink);
+
+                        if (typeFolder === 'Analyzed') { 
+                            const resultsUrl = `/results/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(fileObj.name)}`;
+                            const resultsLink = document.createElement('a');
+                            resultsLink.href = resultsUrl;
+                            resultsLink.className = 'btn btn-sm btn-primary';
+                            resultsLink.textContent = 'View';
+                            actionsDiv.appendChild(resultsLink);
+
+                            if (fileObj.name.toLowerCase().endsWith('-analyzed.xlsx') || fileObj.name.toLowerCase().endsWith('-edited.xlsx')) {
+                                const editUrl = `/edit/${encodeURIComponent(clientName)}/${encodeURIComponent(projectName)}/${encodeURIComponent(fileObj.name)}`;
+                                const editLink = document.createElement('a');
+                                editLink.href = editUrl;
+                                editLink.className = 'btn btn-sm btn-secondary';
+                                editLink.textContent = 'Edit';
+                                actionsDiv.appendChild(editLink);
+                            }
+                        }
+                        
+                        const deleteButton = document.createElement('button');
+                        deleteButton.className = 'btn btn-sm btn-outline-danger';
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.type = 'button';
+                        deleteButton.onclick = function() {
+                            deleteFile(clientName, projectName, typeFolder, fileObj.name, li);
+                        };
+                        actionsDiv.appendChild(deleteButton);
+                        li.appendChild(actionsDiv);
+                        return li;
+                    }
+
+                    originalFilesList.innerHTML = '';
+                    if (data.originals && data.originals.length > 0) {
+                        data.originals.forEach(fileObj => {
+                            originalFilesList.appendChild(createListItem(fileObj, 'Originals'));
+                        });
+                    } else {
+                        originalFilesList.innerHTML = '<li class="no-files">No original files found.</li>';
+                    }
+
+                    analyzedFilesList.innerHTML = '';
+                    if (data.analyzed && data.analyzed.length > 0) {
+                        data.analyzed.forEach(fileObj => {
+                            analyzedFilesList.appendChild(createListItem(fileObj, 'Analyzed'));
+                        });
+                    } else {
+                        analyzedFilesList.innerHTML = '<li class="no-files">No analyzed/edited files found.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching files:', error);
+                    originalFilesList.innerHTML = '<li class="no-files">Error loading files.</li>';
+                    analyzedFilesList.innerHTML = '<li class="no-files">Error loading files.</li>';
+                });
+        }
+
+        clientSelect.addEventListener('change', function() {
+            populateProjects(this.value, null); 
+        });
+        projectSelect.addEventListener('change', function() {
+            populateFiles(clientSelect.value, this.value);
+        });
+
+        window.addEventListener('DOMContentLoaded', (event) => {
+            if (preselectedClient) {
+                clientSelect.value = preselectedClient; 
+                populateProjects(preselectedClient, preselectedProject);
+            }
+        });
+    </script>
+</body>
+</html>

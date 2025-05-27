@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCDA - RVTools Upload</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background-color: #f8f9fa; padding-bottom: 40px; }
+        .container { max-width: 700px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .form-label { font-weight: 500; }
+        .form-check-label { font-weight: normal; }
+        .btn-primary { background-color: #007bff; border-color: #007bff; }
+        .alert { word-break: break-word; }
+        .nav-link-home { display: inline-block; margin-top: 20px;}
+        .progress-container { margin-top: 15px; display: none; }
+        .progress { height: 25px; font-size: 0.9rem;}
+        .progress-bar {
+            background-color: #0d6efd;
+            transition: width 0.1s ease-out;
+            font-weight: bold;
+            line-height: 25px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>RVTools Analysis</h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm mb-3">&larr; DCDA Home</a>
+        </div>
+        <p class="text-muted">Upload a full/raw RVTools output file (.xlsx) to begin analysis.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div id="uploadStatusMessage" class="alert" style="display:none;" role="alert"></div>
+
+        <form id="uploadForm" method="POST" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
+            <div class="mb-3">
+                <label for="clientSelect" class="form-label">Client:</label>
+                <div class="input-group">
+                    <select id="clientSelect" name="selected_client" class="form-select">
+                        <option value="">-- Select Existing Client --</option>
+                        {% for client_dir_name in client_list %} {# client_dir_name is the raw directory name #}
+                            {# MODIFIED: Replace underscores with spaces for display text only #}
+                            <option value="{{ client_dir_name }}">{{ client_dir_name.replace('_', ' ') }}</option>
+                        {% endfor %}
+                        <option value="_new">-- Add New Client --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3" id="newClientNameDiv" style="display:none;">
+                <label for="newClientNameInput" class="form-label">New Client Name:</label>
+                <input type="text" id="newClientNameInput" name="new_client_name" class="form-control" placeholder="Enter new client name">
+            </div>
+
+            <div class="mb-3">
+                <label for="projectSelect" class="form-label">Project:</label>
+                <div class="input-group">
+                    <select id="projectSelect" name="selected_project" class="form-select" disabled>
+                        <option value="">-- Select Client First --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3" id="newProjectNameDiv" style="display:none;">
+                <label for="newProjectNameInput" class="form-label">New Project Name:</label>
+                <input type="text" id="newProjectNameInput" name="new_project_name" class="form-control" placeholder="Enter new project name (optional, defaults to 'General')">
+            </div>
+
+            <div class="mb-3">
+                <label for="rvtoolsFile" class="form-label">RVTools File (.xlsx):</label>
+                <input type="file" class="form-control" id="rvtoolsFile" name="rvtools_file" accept=".xlsx" required>
+            </div>
+
+            <div id="fileCollisionOptions" class="mb-3" style="display:none;">
+                <p class="text-danger fw-bold">Warning: An original or analyzed version of this file already exists for this client/project.</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="collision_action" id="collisionDeny" value="deny" checked>
+                    <label class="form-check-label" for="collisionDeny">
+                        Cancel Upload (Default)
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="collision_action" id="collisionOverwrite" value="overwrite">
+                    <label class="form-check-label" for="collisionOverwrite">
+                        Overwrite Existing File(s)
+                    </label>
+                </div>
+            </div>
+            
+            <div class="progress-container mb-3" id="progressContainer" style="display: none;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+            </div>
+
+            <button type="submit" id="submitButton" class="btn btn-primary w-100">Upload and Analyze</button>
+        </form>
+        <a href="{{ url_for('browse_existing') }}" class="nav-link-home">Browse Existing Projects &rarr;</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const clientSelect = document.getElementById('clientSelect');
+        const newClientNameDiv = document.getElementById('newClientNameDiv');
+        const newClientNameInput = document.getElementById('newClientNameInput');
+        const projectSelect = document.getElementById('projectSelect');
+        const newProjectNameDiv = document.getElementById('newProjectNameDiv');
+        const newProjectNameInput = document.getElementById('newProjectNameInput');
+        const rvtoolsFile = document.getElementById('rvtoolsFile');
+        const fileCollisionOptions = document.getElementById('fileCollisionOptions');
+        const uploadForm = document.getElementById('uploadForm'); 
+        const uploadStatusMessage = document.getElementById('uploadStatusMessage');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const submitButton = document.getElementById('submitButton');
+
+        const defaultProjectName = "General"; 
+
+        function showStatus(message, isSuccess) {
+            uploadStatusMessage.textContent = message;
+            uploadStatusMessage.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-danger');
+            uploadStatusMessage.style.display = 'block';
+            if(isSuccess){
+                setTimeout(() => { uploadStatusMessage.style.display = 'none'; }, 5000);
+            }
+        }
+        
+        clientSelect.addEventListener('change', function() {
+            const selectedValue = this.value; // This is the raw directory name
+            newClientNameDiv.style.display = selectedValue === '_new' ? 'block' : 'none';
+            newClientNameInput.required = selectedValue === '_new';
+
+            if (selectedValue && selectedValue !== '_new') { 
+                populateProjects(selectedValue);
+            } else if (selectedValue === '_new') { 
+                projectSelect.innerHTML = `<option value="_general_select">-- ${defaultProjectName} (Default) --</option>`;
+                const addNewOpt = document.createElement('option');
+                addNewOpt.value = '_new';
+                addNewOpt.textContent = '-- Add New Project --';
+                projectSelect.appendChild(addNewOpt);
+                projectSelect.disabled = false;
+                newProjectNameDiv.style.display = 'none'; 
+                newProjectNameInput.value = '';
+                newProjectNameInput.required = false; 
+            } else { 
+                projectSelect.innerHTML = '<option value="">-- Select Client First --</option>';
+                projectSelect.disabled = true;
+                newProjectNameDiv.style.display = 'none';
+                newProjectNameInput.value = '';
+            }
+            checkFileCollision();
+        });
+
+        function populateProjects(clientDirName) { // clientDirName is the raw directory name
+            projectSelect.innerHTML = '<option value="">Loading...</option>'; projectSelect.disabled = true;
+            newProjectNameDiv.style.display = 'none'; newProjectNameInput.value = '';
+            fetch(`/get_projects/${encodeURIComponent(clientDirName)}`)
+                .then(response => response.json()).then(data => {
+                    projectSelect.innerHTML = `<option value="_general_select">-- ${defaultProjectName} (Default) --</option>`;
+                    if (data.projects && data.projects.length > 0) {
+                        data.projects.forEach(projectDirName => { // projectDirName is raw from backend
+                            const opt = document.createElement('option');
+                            opt.value = projectDirName; // Use raw directory name for value
+                            // MODIFIED: Replace underscores with spaces for display text only
+                            opt.textContent = projectDirName.replace(/_/g, ' '); 
+                            projectSelect.appendChild(opt);
+                        });
+                    }
+                    const addNewOpt = document.createElement('option');
+                    addNewOpt.value = '_new';
+                    addNewOpt.textContent = '-- Add New Project --';
+                    projectSelect.appendChild(addNewOpt);
+                    projectSelect.disabled = false;
+                }).catch(error => { console.error('Error fetching projects:', error); projectSelect.innerHTML = '<option value="">Error loading projects</option>'; });
+            checkFileCollision();
+        }
+
+        projectSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            newProjectNameDiv.style.display = selectedValue === '_new' ? 'block' : 'none';
+            newProjectNameInput.required = selectedValue === '_new';
+            if (selectedValue !== '_new') { newProjectNameInput.value = ''; }
+            checkFileCollision();
+        });
+        
+        rvtoolsFile.addEventListener('change', checkFileCollision);
+
+        function checkFileCollision() {
+            const clientVal = clientSelect.value; 
+            const projectVal = projectSelect.value;
+            
+            // client and project here will be the raw directory names or user input
+            const client = clientVal === '_new' ? newClientNameInput.value.trim() : clientVal;
+            let project;
+            if (projectVal === '_new') { project = newProjectNameInput.value.trim(); }
+            else if (projectVal === '_general_select' || projectVal === '' || !projectVal) { project = defaultProjectName; }
+            else { project = projectVal; }
+            
+            const file = rvtoolsFile.files[0]; // file.name is the raw filename
+            
+            if (client && project && file && file.name) {
+                // Use raw names for the API check
+                fetch(`/check_file_exists/${encodeURIComponent(client)}/${encodeURIComponent(project)}/${encodeURIComponent(file.name)}`)
+                .then(response => response.json()).then(data => {
+                    if (data.error) { console.error("File check error:", data.error); fileCollisionOptions.style.display = 'none'; }
+                    else if (data.original_exists || data.analyzed_exists) { fileCollisionOptions.style.display = 'block'; }
+                    else { fileCollisionOptions.style.display = 'none'; }
+                }).catch(error => { console.error('Error checking file:', error); fileCollisionOptions.style.display = 'none'; });
+            } else { fileCollisionOptions.style.display = 'none'; }
+        }
+
+        uploadForm.addEventListener('submit', function(event) {
+            event.preventDefault(); 
+
+            const fileInput = document.getElementById('rvtoolsFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showStatus('Please select a file to upload.', false); 
+                return;
+            }
+            
+            let clientNameToSubmit = clientSelect.value; // This is the raw directory name or '_new'
+            if (clientNameToSubmit === '_new') { 
+                clientNameToSubmit = newClientNameInput.value.trim(); 
+                if (!clientNameToSubmit) { showStatus('New Client Name cannot be empty.', false); return; }
+            } else if (!clientNameToSubmit) { 
+                showStatus('Please select or add a Client.', false); return; 
+            }
+            
+            let projectNameToSubmit = projectSelect.value; // This is the raw directory name or '_new' or '_general_select'
+            if (projectNameToSubmit === '_new') { 
+                projectNameToSubmit = newProjectNameInput.value.trim() || defaultProjectName; 
+            } else if (projectNameToSubmit === '_general_select' || !projectNameToSubmit) { 
+                projectNameToSubmit = defaultProjectName; 
+            }
+
+            const formData = new FormData(uploadForm); 
+            // Note: FormData will send the 'value' of select elements (which are raw dir names)
+            // and the typed input for new_client_name/new_project_name.
+            // The backend app.py uses these raw values to create secure folder names.
+
+            const xhr = new XMLHttpRequest();
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.classList.remove('bg-success', 'bg-danger'); 
+            progressBar.classList.add('progress-bar-animated', 'progress-bar-striped');
+            progressContainer.style.display = 'block'; 
+            uploadStatusMessage.style.display = 'none'; 
+            if(submitButton) submitButton.disabled = true;
+
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.textContent = percentComplete + '%';
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                if(submitButton) submitButton.disabled = false;
+                
+                if (xhr.status >= 200 && xhr.status < 300) { 
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            progressBar.style.width = '100%';
+                            progressBar.textContent = '100% - Complete';
+                            progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                            progressBar.classList.add('bg-success'); 
+                            // response.message from backend likely contains the raw (or secured) filename.
+                            // We display it as-is, which is correct for filenames.
+                            showStatus(response.message || 'Upload successful, processing started.', true);
+                            if (response.redirect_url) {
+                                setTimeout(() => { window.location.href = response.redirect_url; }, 1000);
+                            } else {
+                                console.error("No redirect URL provided from backend.");
+                                showStatus("Upload successful, but could not navigate to processing page.", false);
+                                progressContainer.style.display = 'none'; 
+                            }
+                        } else {
+                            progressBar.style.width = '100%'; 
+                            progressBar.textContent = 'Failed';
+                            progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                            progressBar.classList.add('bg-danger'); 
+                            // response.message might contain client/project names or filenames.
+                            // Displaying as-is from backend.
+                            showStatus(response.message || 'Upload failed. Please try again.', false);
+                        }
+                    } catch (e) {
+                        console.error("Could not parse server response:", e, xhr.responseText);
+                        progressBar.textContent = 'Response Error';
+                        progressBar.classList.add('bg-danger');
+                        showStatus('Error processing server response.', false);
+                    }
+                } else { 
+                    console.error("Upload failed with HTTP status:", xhr.status, xhr.statusText);
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = `Error: ${xhr.status}`;
+                    progressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                    progressBar.classList.add('bg-danger');
+                    let errorMessage = `Upload failed: ${xhr.statusText || 'Server error'}`;
+                    try { const errorResponse = JSON.parse(xhr.responseText); if(errorResponse && errorResponse.message) { errorMessage = `Upload failed: ${errorResponse.message}`; }} catch(e) { /* Ignore */ }
+                    showStatus(errorMessage, false); // Displaying as-is from backend.
+                }
+            });
+
+            xhr.addEventListener('error', function() {
+                if(submitButton) submitButton.disabled = false;
+                progressContainer.style.display = 'none'; 
+                showStatus('Upload failed due to a network error or server being unavailable.', false);
+                console.error("Upload XHR error.");
+            });
+
+            xhr.open('POST', uploadForm.action); 
+            xhr.send(formData);
+        });
+
+        if (clientSelect.value && clientSelect.value !== '_new') {
+            populateProjects(clientSelect.value);
+        }
+    </script>
+</body>
+</html>

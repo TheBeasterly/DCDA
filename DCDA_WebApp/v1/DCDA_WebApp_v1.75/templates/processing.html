@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# MODIFIED: client_name and project_name with spaces, display_filename (a filename) as-is #}
+    <title>DCDA - RVTools Processing - {{ client_name.replace('_', ' ') }} - {{ project_name.replace('_', ' ') }} - {{ display_filename }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Basic styles - adjust as needed */
+        body { font-family: sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 800px; margin: auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        #progress-log {
+            white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+            word-wrap: break-word; /* Break long words */
+            max-height: 400px;
+            overflow-y: auto; /* Enable vertical scroll */
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: monospace; /* Use monospace font for logs */
+            font-size: 0.9em;
+        }
+        .status { margin-top: 20px; font-weight: bold; }
+        .status-processing { color: #0d6efd; }
+        .status-success { color: #198754; }
+        .status-error { color: #dc3545; }
+        .spinner-border { vertical-align: middle; margin-left: 10px; }
+        .results-link { display: none; margin-top: 15px;} /* Hide link initially */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Processing File</h1>
+        <p>
+            {# MODIFIED: client_name and project_name with spaces, display_filename (a filename) as-is #}
+            <strong>Client:</strong> {{ client_name.replace('_', ' ') }}<br>
+            <strong>Project:</strong> {{ project_name.replace('_', ' ') }}<br>
+            <strong>File:</strong> {{ display_filename }}
+        </p>
+        <p class="status status-processing">
+            Processing in progress...
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        </p>
+        <div id="progress-log">Starting process...</div>
+        <a id="results-link" href="#" class="btn btn-success results-link">View Results</a>
+        {# DCDA Home button styled as btn-outline-secondary for consistency with other pages, and raw client/project names for browse link #}
+        <a href="{{ url_for('browse_existing') }}?client={{ client_name }}&project={{ project_name }}" class="btn btn-outline-info" style="margin-top: 15px; margin-left:5px;">Back to Browse Project</a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-top: 15px;">DCDA Home</a>
+    </div>
+
+    <script>
+        const taskId = "{{ task_id }}";
+        const progressLog = document.getElementById('progress-log');
+        const statusElement = document.querySelector('.status');
+        const resultsLink = document.getElementById('results-link');
+
+        // Function to append messages to the log
+        function logMessage(message) {
+            progressLog.textContent += '\n' + message;
+            // Auto-scroll to the bottom
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        // --- Initialize EventSource ---
+        logMessage("Connecting to processing stream...");
+        const eventSource = new EventSource(`/stream/${taskId}`);
+
+        // --- Handle incoming messages ---
+        eventSource.onmessage = function(event) {
+            logMessage(event.data); // Display raw progress message
+        };
+
+        // --- Handle custom 'result' event ---
+        eventSource.addEventListener('result', function(event) {
+            console.log("Result event received:", event.data);
+            let resultData;
+            try {
+                resultData = JSON.parse(event.data);
+            } catch (e) {
+                logMessage("Error: Could not parse final result data.");
+                statusElement.textContent = "Error: Invalid result data received from server.";
+                statusElement.className = "status status-error";
+                eventSource.close(); // Close connection on error
+                return;
+            }
+
+            // Stop the spinner
+            const spinner = statusElement.querySelector('.spinner-border');
+            if (spinner) spinner.remove();
+
+            if (resultData.success) {
+                logMessage("Processing complete!");
+                statusElement.textContent = "Processing Successful!";
+                statusElement.className = "status status-success";
+
+                // *** Build URL on Client-Side ***
+                // Ensure raw names (with underscores) are used for URL construction
+                // resultData.client_name, resultData.project_name, resultData.analyzed_filename from backend are raw.
+                if (resultData.client_name && resultData.project_name && resultData.analyzed_filename) {
+                    const resultsUrl = `/results/${encodeURIComponent(resultData.client_name)}/${encodeURIComponent(resultData.project_name)}/${encodeURIComponent(resultData.analyzed_filename)}`;
+                    resultsLink.href = resultsUrl;
+                    resultsLink.style.display = 'inline-block'; // Show the button
+                    logMessage(`Results available.`); 
+                } else {
+                    logMessage("Warning: Result data missing information needed to build results link.");
+                    statusElement.textContent = "Processing Successful (but cannot link to results).";
+                }
+
+            } else {
+                logMessage(`Error: ${resultData.message || 'Unknown processing error.'}`);
+                statusElement.textContent = `Processing Failed: ${resultData.message || 'Unknown error.'}`;
+                statusElement.className = "status status-error";
+            }
+
+            // Close the connection once the result is received
+            eventSource.close();
+            logMessage("Connection closed.");
+        });
+
+        // --- Handle errors ---
+        eventSource.onerror = function(err) {
+            logMessage("Stream connection error or closed.");
+            // Don't overwrite final status if already set
+            if (!statusElement.classList.contains('status-success') && !statusElement.classList.contains('status-error')) {
+                 statusElement.textContent = "Connection closed or error.";
+                 statusElement.className = "status status-error"; 
+                 const spinner = statusElement.querySelector('.spinner-border');
+                 if (spinner) spinner.remove();
+            }
+            console.error("EventSource failed:", err);
+            eventSource.close(); // Ensure closed on error
+        };
+
+    </script>
+</body>
+</html>
