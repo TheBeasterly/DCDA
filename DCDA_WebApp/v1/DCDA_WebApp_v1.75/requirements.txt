@@ -1,7 +1,41 @@
 # requirements.txt
-Flask>=2.0
-openpyxl>=3.0
-pandas>=1.3
+altgraph==0.17.4
+blinker==1.9.0
+click==8.1.8
+et-xmlfile==1.1.0
+Flask==3.1.0
+formulas==1.2.6
+itsdangerous==2.2.0
+Jinja2==3.1.6
+macholib==1.16.3
+MarkupSafe==3.0.2
+modulegraph==0.19.6
+numpy==1.26.1
+numpy-financial==1.0.0
+openpyxl==3.1.2
+packaging==23.2
+pandas==2.2.1
+Pillow==10.1.0
+PuLP==2.8.0
+py2app==0.28.6
+pyinstaller==6.1.0
+pyinstaller-hooks-contrib==2023.10
+python-dateutil==2.8.2
+pytz==2023.3.post1
+regex==2023.10.3
+schedula==1.4.9
+scipy==1.13.0
+setuptools==68.2.2
+six==1.16.0
+style==1.1.0
+Tcl==0.2
+tk==0.1.0
+tzdata==2023.3
+update==0.0.1
+Werkzeug==3.1.3
+wheel==0.41.2
+xlrd==2.0.1
+XlsxWriter==3.2.0
 
 
 # Ready for Idea 7: "Processing..." Page Enhancements
