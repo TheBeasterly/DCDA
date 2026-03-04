@@ -377,7 +377,8 @@ def view_results(client_name, project_name, filename_in_url):
         for sheet_name in expected_sheets:
             if sheet_name in excel_data:
                 df = excel_data[sheet_name]
-                summary_data_json[sheet_name] = df.fillna('').astype(str).to_json(orient='records', date_format='iso')
+                # CHANGE: added .astype(object) before .fillna('')
+                summary_data_json[sheet_name] = df.astype(object).fillna('').astype(str).to_json(orient='records', date_format='iso')
             else:
                 summary_data_json[sheet_name] = "[]"; logging.warning(f"Sheet '{sheet_name}' not found in {safe_filename_in_url}.")
     except Exception as e:
@@ -523,7 +524,8 @@ def edit_summary(client, project, filename_from_url):
             flash(f"Warning: 'vSummary' sheet in '{html.escape(safe_filename)}' is empty. Cannot edit.", "warning")
             return redirect(url_for('view_results', client_name=safe_client, project_name=safe_project, filename_in_url=safe_filename))
         else:
-            df_summary.fillna('', inplace=True)
+            ##Python 3.14 CHANGE -- Explicitly convert to object first so strings are allowed in any column
+            df_summary = df_summary.astype(object).fillna('')
             for col in df_summary.select_dtypes(include=['datetime64[ns]']).columns:
                 if col in df_summary.columns: df_summary[col] = df_summary[col].astype(str)
             vsummary_data_json = df_summary.to_json(orient='records', date_format='iso')

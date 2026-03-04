@@ -395,7 +395,7 @@ def trunc_cols_vPart(destfile_path):
             vSummary_df = pd.merge(vSummary_df, aggregated_df, on='VM', how='left')
             # Fill NaNs introduced by merge (for VMs in vInfo but not vPart) with 0
             for col in existing_storage_cols:
-                 if col in vSummary_df.columns: vSummary_df[col].fillna(0, inplace=True)
+                 if col in vSummary_df.columns: vSummary_df[col] = pd.to_numeric(vSummary_df[col], errors='coerce').fillna(0)
         else: # Add empty columns if no aggregation happened
              for col in storage_cols: vSummary_df[col] = 0
 
